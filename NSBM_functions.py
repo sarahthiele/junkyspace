@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import pdb
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.stats import maxwell as maxwell
+import scipy.stats
 
 import sys
 sys.path.insert(1, '/store/users/sthiele/home/ASATtest/')
@@ -48,7 +49,7 @@ def get_AM_ratio(L, nums):
         
         alphaL2 = 1 - alphaL1
         return alphaL1, alphaL2
-    def muL(lamdaL):
+    def muLvals(lamdaL):
         muL1 = np.zeros(len(lamdaL))
         muL1[lamdaL <= -1.1] = -0.6
         muL1[(lamdaL>-1.1)&(lamdaL<0.)] = -0.6 - 0.318 * (lamdaL[(lamdaL>-1.1)&(lamdaL<0.)] + 1.1)
@@ -70,7 +71,7 @@ def get_AM_ratio(L, nums):
         sigmaL2[(lamdaL > -0.5)&(lamdaL < -0.3)] = 0.5 - (lamdaL[(lamdaL > -0.5)&(lamdaL < -0.3)] + 0.5)
         sigmaL2[lamdaL >= -0.3] = 0.3 
         return sigmaL1, sigmaL2
-    def muS(lamdaS):
+    def muSvals(lamdaS):
         mu_S = np.zeros(len(lamdaS))
         mu_S[lamdaS <= -1.75] = -0.3
         mu_S[(lamdaS > -1.75)&(lamdaS < -1.25)] = -0.3 - 1.4 * (lamdaS[(lamdaS > -1.75)&(lamdaS < -1.25)] + 1.75)
@@ -83,60 +84,74 @@ def get_AM_ratio(L, nums):
         return sigma_S
     def alphaM(lamdaM):
         return (lamdaM - np.log10(0.08)) / (np.log10(0.11) - np.log10(0.08))
-    def mu_sigma_M_tot(lamdaM):
-        aL1, aL2 = alphaL(lamdaM)
-        muL1, muL2 = muL(lamdaM)
-        sL1, sL2 = sigmaL(lamdaM)
-        muS1 = muS(lamdaM)
-        sigS = sigmaS(lamdaM)
-        aM = alphaM(lamdaM)
-        mu_A = aL1 * muL1 + aL2 * muL2
-        muM = aM * mu_A + (1-aM) * muS1
-        sig_A2 = (aL1 * sL1) ** 2 + (aL2 * sL2) ** 2
-        sigM = np.sqrt(aM ** 2 * sig_A2 + (1-aM)**2 * sigS ** 2)
-        return muM, sigM
     
     nums = nums.astype(int)
     
     lamda = np.log10(L)
-    lamdaL = lamda[L>0.11]
-    lamdaM = lamda[(L>=0.08)&(L<=0.11)]
-    lamdaS = lamda[L<0.08]
-    
-    aL1, aL2 = alphaL(lamdaL)
-    muL1, muL2 = muL(lamdaL)
-    sigL1, sigL2 = sigmaL(lamdaL)
-    sigS = sigmaS(lamdaS)
-    muS1 = muS(lamdaS)
-    muM, sigM = mu_sigma_M_tot(lamdaM)
+    aL1, aL2 = alphaL(lamda)
+    muL1, muL2 = muLvals(lamda)
+    sigL1, sigL2 = sigmaL(lamda)
+    sigS = sigmaS(lamda)
+    muS1 = muSvals(lamda)
     
     chis = np.array([])
     
-    numsL = nums[L>0.11]
-    for i in range(len(numsL)):
-        num = numsL[i]
-        pdfL = norm(aL1[i] * muL1[i] + aL2[i] * muL2[i], 
-                   np.sqrt((aL1[i]*sigL1[i])**2 + (aL2[i]*sigL2[i])**2))
-        chi = pdfL.rvs(size=num)
-        chis = np.append(chis, chi)
-        
-    numsM = nums[(L>=0.08)&(L<=0.11)]
-    for k in range(len(numsM)):
-        num = numsM[k]
-        pdfM = norm(muM[k], sigM[k])
-        chi = pdfM.rvs(size=num)
-        chis = np.append(chis, chi)
-        
-    numsS = nums[L < 0.08]
-    for j in range(len(numsS)):
-        num = numsS[j]
-        pdfS = norm(muS1[j], sigS[j])
-        chi = pdfS.rvs(size=num)
-        chis = np.append(chis, chi)
+    chi = np.linspace(-3,1, 100000)
+    dchi = (chi[1:]-chi[:-1])[0]
     
+    # small objects:
+    flag = L < 0.08
+    numsS = nums[flag]
+    mu = muS1[flag]
+    sig = sigS[flag]
+    for i in range(len(L[flag])):
+        num = numsS[i]
+        pS = scipy.stats.norm(mu[i], sig[i]).pdf(chi)
+        cdfS = np.cumsum(pS*dchi)
+        P = np.random.uniform(size=num)
+        cdfindices = np.digitize(P, bins=cdfS)  
+        cdfindices[cdfindices==len(chi)] = len(chi) - 1
+        chis = np.append(chis, chi[cdfindices])
+        
+    # medium objects:
+    flag = (L>=0.08)&(L<=0.11)
+    numsM = nums[flag]
+    a = alphaM(lamda[flag])
+    muS = muS1[flag]
+    sig_S = sigS[flag]
+    aL_1, aL_2 = aL1[flag], aL2[flag]
+    muL_1, muL_2 = muL1[flag], muL2[flag]
+    sigL_1, sigL_2 = sigL1[flag], sigL2[flag]
+    for i in range(len(L[flag])):
+        num = numsM[i]
+        pS = scipy.stats.norm(muS[i], sig_S[i]).pdf(chi)
+        pL = aL_1[i] * scipy.stats.norm(muL_1[i], sigL_1[i]).pdf(chi) + aL_2[i] * scipy.stats.norm(muL_2[i], sigL_2[i]).pdf(chi)
+        pM = a[i] * pL + (1-a[i]) * pS
+        cdfM = np.cumsum(pM*dchi)
+        P = np.random.uniform(size=num)
+        cdfindices = np.digitize(P, bins=cdfM)
+        cdfindices[cdfindices==len(chi)] = len(chi) - 1
+        chis = np.append(chis, chi[cdfindices])
+        
+    # large objects:
+    flag = L>0.11
+    numsL = nums[flag]
+    a1, a2 = aL1[flag], aL2[flag]
+    mu1, mu2 = muL1[flag], muL2[flag]
+    sig1, sig2 = sigL1[flag], sigL2[flag]
+    for i in range(len(L[flag])):
+        num = numsL[i]
+        pL = a1[i] * scipy.stats.norm(mu1[i], sig1[i]).pdf(chi) + a2[i] * scipy.stats.norm(mu2[i], sig2[i]).pdf(chi)
+        cdfL = np.cumsum(pL*dchi)
+        P = np.random.uniform(size=num)
+        cdfindices = np.digitize(P, bins=cdfL)
+        cdfindices[cdfindices==len(chi)] = len(chi) - 1
+        chis = np.append(chis, chi[cdfindices])
+        
     AM = 10 ** chis
     return AM
-    
+
+
 def get_A_M_vals(Lvals, AM, nums):
     nums = nums.astype(int)
     def b_gamma_of_L(Lc):
@@ -177,8 +192,10 @@ def vel_dis_NBM(mtarget, mkill, vkill, vtarget, rtar, nbins, Lc_min, Lc_max,
                 KEkill, numsample, makev=True):
     M = mtarget + mkill
     if KEkill / mtarget / 1000 >= 40:
+        print('catastrophic collision')
         Me = mkill + mtarget
     else:
+        print('cratering collision')
         Me = 2 * KEkill / 1000 ** 2
     print('Ejected Mass initial calc: ', Me)
     def dNum(L0, L1, Me):
