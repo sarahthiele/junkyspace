@@ -1,3 +1,9 @@
+#########################################################################################################################
+# implementation of the NSBM in the context of an ASAT test
+# authored by Sarah Thiele
+# last updated August 24th, 2021 --v5    
+#########################################################################################################################
+
 import sys
 sys.path.insert(1, '/store/users/sthiele/home/ASATtest/')
 from NSBM_functions import *
@@ -23,9 +29,9 @@ deorbit_R = 200.
 #grid params for interpolation
 satdistro = str(args.satdistro)
 if satdistro == 'satsnow':
-    NTHETA= 180
-    NALT=1200
-    altCoMin=(300.+REkm)/aukm
+    NTHETA = 180
+    NALT =1200
+    altCoMin =(300.+REkm)/aukm
     altCoMax=(1500+REkm)/aukm
     
 elif satdistro == 'sats2019':
@@ -36,6 +42,9 @@ elif satdistro == 'sats2019':
     
 dAltCo = (altCoMax-altCoMin)/NALT
 dThetaCo = np.pi/NTHETA
+
+#########################################################################################################################
+# target parameters
 
 mtarget = 740
 mkill = 10
@@ -49,12 +58,15 @@ inc = 96.6 * np.pi / 180
 omega=17 * np.pi / 180
 vtarget, rtarget = get_target_params(mtarget, vr, r, Q, inc, omega)
 
-nbins = 100
+#########################################################################################################################
+# fragments parameters
+
+nbins = 50
 Lc_min = float(args.Lcmin)
 Lc_max = 1.0
 KEkill = 130e6
 
-N_tot, L_mids, nums, mfrags, vfrags_all, vfrags, vfrags_total, eccs, SMA, AMfrags_all, AMfrags = vel_dis_NBM(mtarget,
+N_tot, L_mids, nums, mfrags, vfrags_all, vfrags, vfrags_total, eccs, SMA, AMfrags_all, AMfrags, Lcvals_all, Lcvals = vel_dis_NBM(mtarget,
                                                                                                              mkill, 
                                                                                                              vkill, 
                                                                                                              vtarget,
@@ -64,14 +76,20 @@ N_tot, L_mids, nums, mfrags, vfrags_all, vfrags, vfrags_total, eccs, SMA, AMfrag
                                                                                                              Lc_max,
                                                                                                              KEkill,
                                                                                                              numsample,
-                                                                                                            makev=True)
+                                                                                                                               makev=True)
 
+if numsample == 100:
+    numsample = N_tot
+
+#########################################################################################################################
+# plot initial parameter distributions
 
 fig, ax = plt.subplots(1, 4, figsize=(24, 6))
-ax[0].plot(L_mids, nums, color='k', lw=3)
+ax[0].plot(L_mids, nums, color='k', lw=3, drawstyle='steps-mid')
 ax[0].set_xscale('log')
 ax[0].set_yscale('log')
 ax[0].set_ylabel(r'N$_{\rm{Frags}}$ per Bin', fontsize=20)
+ax[0].set_xlabel(r'L$_{\rm{C}}$ (m)', fontsize=20)
 ax[0].text(0.7, 0.9, r'N$_{\rm{TOT}}$='+str(N_tot), fontsize=18, horizontalalignment='center', 
            transform=ax[0].transAxes)
 
@@ -104,34 +122,43 @@ ax[0].text(0.5, 1.075,
 
 plt.savefig('{}/init_dis_{}_{}.png'.format(path, Lc_min, numsample), bbox_inches='tight')
 
-vfrags_init_deorbit = vfrags[SMA/1000<=REkm+deorbit_R]
-AMfrags_init_deorbit = AMfrags[SMA/1000<=REkm+deorbit_R]
-SMA_init_deorbit = SMA[SMA/1000<=REkm+deorbit_R]
-eccs_init_deorbit = eccs[SMA/1000<=REkm+deorbit_R]
-init_deorbit = len(vfrags_init_deorbit)
+#########################################################################################################################
+# make cuts in SMA
 
-keep = (SMA*(1-eccs)/1000>REkm+deorbit_R)&(np.linalg.norm(vfrags_total, axis=1)<11186)
+init_deorbit = (SMA*(1-eccs)/1000 <= REkm + deorbit_R)&(eccs<1.0)
+ejected = eccs >= 1.0
+
+data1 = np.array([np.linalg.norm(vfrags[init_deorbit], axis=1), 
+                  AMfrags[init_deorbit], SMA[init_deorbit], eccs[init_deorbit], Lcvals[init_deorbit]])
+df1 = pd.DataFrame(data1.T, columns=['vkick', 'AM', 'SMA', 'ecc', 'Lc'])
+df1['t_deorbit'] = 0.
+
+data2 = np.array([np.linalg.norm(vfrags[ejected], axis=1), AMfrags[ejected], 
+                  SMA[ejected], eccs[ejected], Lcvals[ejected]])
+df2 = pd.DataFrame(data2.T, columns=['vkick', 'AM', 'SMA', 'ecc', 'Lc'])
+df2['t_deorbit'] = 1e9
+
+df = df1.append(df2)
+df['colprob'] = 0.
+df['colprobperyear'] = 0.
+
+init_deorbit = len(vfrags[init_deorbit])
+
+keep = (SMA*(1-eccs)/1000>REkm+deorbit_R)&(eccs<1.0)
 vfrags = vfrags[keep]
 AMfrags = AMfrags[keep]
 vfrags_total = vfrags_total[keep] / to_m_per_s
 eccs = eccs[keep]
 SMA = SMA[keep]
+Lcvals = Lcvals[keep]
+porb = period(SMA, G*Mearthkg)
 
 NFOLLOW = init_deorbit + len(vfrags)
 
-porb = period(SMA, G*Mearthkg)
-fig, ax = plt.subplots(figsize=(10, 8))
-plt.scatter(porb/3600, SMA*(1-eccs)/1000-REkm, s=5, color='r', label='peri')
-plt.scatter(porb/3600, SMA*(1+eccs)/1000-REkm, s=5, color='b', label='apo')
-plt.axhline(283, ls='-.', lw=1.5, color='xkcd:light blue', label='Microsat-R')
-plt.axhline(400., ls='--', lw=1.5, color='k', label='ISS')
-plt.xlabel(r'P$_{\rm{orb}}$ (hr)', fontsize=16)
-plt.ylabel('Altitude (km)', fontsize=16)
-plt.legend(fontsize=14)
-ax.tick_params(labelsize=14)
-plt.savefig('{}/init_gabbard_kept_{}_{}.png'.format(path, Lc_min, numsample), bbox_inches='tight')
+#########################################################################################################################
+# LEO Gabbard plot & sampled distribution plot
 
-flag = SMA*(1+eccs)/1000-REkm <= 20000
+flag = SMA*(1+eccs)/1000-REkm <= 2000
 fig, ax = plt.subplots(figsize=(10, 8))
 plt.scatter(porb[flag]/3600, (SMA*(1-eccs)/1000-REkm)[flag], s=5, color='r', label='peri')
 plt.scatter(porb[flag]/3600, (SMA*(1+eccs)/1000-REkm)[flag], s=5, color='b', label='apo')
@@ -139,9 +166,9 @@ plt.axhline(283, ls='-.', lw=1.5, color='xkcd:light blue', label='Microsat-R')
 plt.axhline(400., ls='--', lw=1.5, color='k', label='ISS')
 plt.xlabel(r'P$_{\rm{orb}}$ (hr)', fontsize=16)
 plt.ylabel('Altitude (km)', fontsize=16)
-plt.legend(fontsize=14)
+plt.legend(fontsize=14, markerscale=3)
 ax.tick_params(labelsize=14)
-plt.savefig('{}/init_gabbard_kept_alt2e4_{}_{}.png'.format(path, Lc_min, numsample), bbox_inches='tight')
+plt.savefig('{}/init_gabbard_kept_LEO_{}_{}.png'.format(path, Lc_min, numsample), bbox_inches='tight')
 
 fig, ax = plt.subplots(1, 2, figsize=(13, 6))
 
@@ -163,8 +190,12 @@ plt.subplots_adjust(wspace=0.35)
 ax[0].text(0.2, 1.075, 
            'Mtarget={:.3} ton, Vtarget={:.3} km/s, Mkill={} kg,\nKill Energy={:.2} GJ, Intercept Height={} km'.format(mtarget*1./1000, np.round(mag(vtarget), 1)/1e3, mkill, KEkill/1e9, r-REkm), fontsize=20, transform=ax[0].transAxes)
 
-plt.savefig('{}/sampled_dis_{}_{}.png'.format(path, Lc_min, numsample), bbox_inches='tight')
+plt.savefig('{}/kept_init_dis_{}_{}.png'.format(path, Lc_min, numsample), bbox_inches='tight')
 
+
+#########################################################################################################################
+# add position variations of order 10 metres to all fragments
+# and then initialize REBOUND simulation
 
 posfrags = rtarget + np.random.uniform(-10, 10, (len(keep[keep]),3))
 x = posfrags[:,0] / aum
@@ -174,8 +205,7 @@ z = posfrags[:,2] / aum
 altref = 300
 sim = rebound.Simulation()
 sim.integrator ="WHFAST"
-#sim.integrator ="ias15"
-sim.dt = 1e-7  #  force small time step to we sample the satellite density distribution
+sim.dt = 1e-7
 
 sim.add(m=Mearth, hash="Earth", r=Ratm)
 
@@ -183,11 +213,12 @@ for i in range(len(vfrags)):
     sim.add(m=0., vx=vfrags_total[i, 0], vy=vfrags_total[i,1], vz=vfrags_total[i,2],
            x=x[i], y=y[i], z=z[i], hash='{}'.format(i+1))
 
+#########################################################################################################################
+# integrate in chunks
+
 satparams = [NALT, NTHETA, altref, dAltCo]
 
 halfhr = twopi / (365.25 * 24) / 2
-tstart = halfhr
-tend = twopi
 dt = halfhr
 chunk = 20
 
@@ -195,46 +226,62 @@ i = 0
 ilast = len(sim.particles)-chunk
 if ilast < 0:
     ilast = 0
-hash = []
 nums = np.linspace(1, len(sim.particles)-1, len(sim.particles)-1)
-deorbit_times = np.zeros(init_deorbit)
-colprobs = np.zeros(init_deorbit)
-colprobperyears = np.zeros(init_deorbit)
+deorbit_times = np.array([])
+colprobs = np.array([])
+colprobperyears = np.array([])
 chunk_i = 1
+counter = 0
+nancatches = 0
 while ilast >= 0:
     simchunk = sim.copy()
     for j in range(i-1):
         simchunk.remove(index=1)
     for j in range(ilast):
         simchunk.remove(index=len(simchunk.particles)-1)
-    for p in simchunk.particles:hash.append(p.hash.value)
+    print('length of chunk: ', len(simchunk.particles)-1)
+    counter += len(simchunk.particles)-1
     if i == 0:
-        num = nums[0:i-1+chunk]
-        AMfrag = AMfrags[0:i-1+chunk]
+        num = nums[0:chunk-1]
+        AMfrag = AMfrags[0:chunk-1]
     else:
         num = nums[i-1:i-1+chunk]
         AMfrag = AMfrags[i-1:i-1+chunk]
     if len(sim.particles) < chunk:
         num = nums
         AMfrag = AMfrags
-    simafter, deorbit_time, colprob, colprobperyear = integrate_colprob(simchunk, AMfrag, num, 
+    simafter, deorbit_time, colprob, colprobperyear, nancatch = integrate_colprob(simchunk, AMfrag, num, 
                                                                         dt=dt, deorbit_R=deorbit_R, 
                                                                         chunk_i=chunk_i, satparams=satparams)
     deorbit_times = np.append(deorbit_times, deorbit_time)
     colprobs = np.append(colprobs, colprob)
     colprobperyears = np.append(colprobperyears, colprobperyear)
     chunk_i += 1
+    nancatches += nancatch
     print(i, ilast)
-    print(len(simchunk.particles))
     if ilast == 0.0:
         break
     i += chunk
     ilast -= chunk
     if ilast < 0:
         ilast = 0
-hash = np.array(hash)
 
-timedf = pd.DataFrame(deorbit_times[deorbit_times < 1e6].T, columns=['time'])
+if counter != int(nums[-1]):
+    print('uh oh!')
+    
+#########################################################################################################################
+# plot final distributions and save data
+
+data3 = np.array([np.linalg.norm(vfrags, axis=1), AMfrags, SMA, eccs, Lcvals, deorbit_times, colprobs, colprobperyears])
+df3 = pd.DataFrame(data3.T, columns=['vkick', 'AM', 'SMA', 'ecc', 'Lc','t_deorbit', 'colprob', 'colprobperyear'])
+
+datadf = df.append(df3)
+datadf = datadf.sort_values('t_deorbit')
+datadf.to_hdf('{}/data_{}_{}.hdf'.format(path, Lc_min, numsample), key='data')
+dataother = pd.DataFrame(np.array([nancatch]), columns=['nancatch'])
+dataother.to_hdf('{}/data_{}_{}.hdf'.format(path, Lc_min, numsample), key='nancatch')
+
+timedf = pd.DataFrame(datadf.loc[datadf.t_deorbit < 1e6].t_deorbit.values.T, columns=['time'])
 cumsum = np.cumsum(timedf.groupby('time').size().values)
 
 fig, ax = plt.subplots(figsize=(10,8))
@@ -245,18 +292,14 @@ ax.tick_params(labelsize=14)
 plt.title('{:.4}% deorbited after 2 years'.format(cumsum[-1]/NFOLLOW*100), fontsize=16)
 plt.savefig('{}/deorbit_times_{}_{}.png'.format(path, Lc_min, numsample), bbox_inches='tight')
 
-vkicks = np.append(np.linalg.norm(vfrags_init_deorbit, axis=1), np.linalg.norm(vfrags, axis=1))
-AM = np.append(AMfrags_init_deorbit, AMfrags)
-sma = np.append(SMA_init_deorbit, SMA)
-e = np.append(eccs_init_deorbit, eccs)
-data = np.array([deorbit_times, colprobs, colprobperyears, vkicks, AM, sma, e])
-datadf = pd.DataFrame(data.T, columns=['t_deorbit', 'colprob', 'colprobperyear', 'vkick', 'AM', 'SMA', 'ecc'])
-datadf = datadf.sort_values('t_deorbit')
-datadf.to_hdf('{}/data_{}_{}.hdf'.format(path, Lc_min, numsample), key='data')
-
-fig, ax = plt.subplots(figsize=(10,8))
 flaglo = datadf.t_deorbit.values < 1e6
 flaghi = datadf.t_deorbit.values == 1e6
+flageject = datadf.t_deorbit.values == 1e9
+
+fig, ax = plt.subplots(figsize=(10,8))
+
+plt.scatter(np.log10(datadf.AM.values[flageject]), datadf.vkick.values[flageject]/1000,
+            c='xkcd:cyan', label=r'ejected fragments')
 plt.scatter(np.log10(datadf.AM.values[flaghi]), datadf.vkick.values[flaghi]/1000,
             c='r', label=r't$_{\rm{deorbit}} \geq$ 2yrs')
 plt.scatter(np.log10(datadf.AM.values[flaglo]), datadf.vkick.values[flaglo]/1000,
@@ -269,6 +312,7 @@ plt.ylabel('Velocity Kick (km/s)', fontsize=16)
 plt.legend(loc='best', fontsize=14)
 ax.tick_params(labelsize=14)
 plt.savefig('{}/AM_vkicks_times_{}_{}.png'.format(path, Lc_min, numsample), bbox_inches='tight')
+
 
 
 
