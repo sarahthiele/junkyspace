@@ -1,8 +1,8 @@
 #########################################################################################################################
 # implementation of the NSBM in the context of an ASAT test
 # authored by Sarah Thiele
-# last updated August 25th, 2021 --v6
-# added in new dN function, changed number of bins from 50 to 100.
+# last updated January 30th, 2022 --v7
+# - added KEkill and path arguments
 #########################################################################################################################
 
 import sys
@@ -11,7 +11,7 @@ from NSBM_functions import *
 import pandas as pd
 import argparse
 
-path = 'final_sims/NSBM'
+# path = 'JAS_paper_sims/NSBM'
 
 SEED=314
 
@@ -21,7 +21,11 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--numsample", default=1000, type=int)
 parser.add_argument("--Lcmin", default=0.01, type=float)
 parser.add_argument("--satdistro", default='satsnow', type=str)
+parser.add_argument("--KEkill", default=130e6, type=float)
+parser.add_argument("--path", default='sims/NSBM', type=str)
 args = parser.parse_args()
+
+path = str(args.path)
 
 numsample = int(args.numsample)
 altref = 300
@@ -56,7 +60,7 @@ r = 283 + REkm
 a = (Q + q) * 1000 / 2
 vr = np.sqrt(G * (Mearthkg + mtarget) * (2/(r*1000) - 1/a))
 inc = 96.6 * np.pi / 180
-omega=17 * np.pi / 180
+omega = 17 * np.pi / 180
 vtarget, rtarget = get_target_params(mtarget, vr, r, Q, inc, omega)
 
 #########################################################################################################################
@@ -65,7 +69,7 @@ vtarget, rtarget = get_target_params(mtarget, vr, r, Q, inc, omega)
 nbins = 100
 Lc_min = float(args.Lcmin)
 Lc_max = 1.0
-KEkill = 130e6
+KEkill = float(args.KEkill)
 
 N_tot, L_mids, nums, mfrags, vfrags_all, vfrags, vfrags_total, eccs, SMA, AMfrags_all, AMfrags, Lcvals_all, Lcvals = vel_dis_NBM(mtarget,
                                                                                                              mkill, 
