@@ -1,7 +1,8 @@
 #########################################################################################################################
 # implementation of a Rayleigh vkick distribution in the context of an ASAT test
 # authored by Sarah Thiele
-# last updated August 24th, 2021 --v3
+# last updated August 26th, 2021 --v4
+# changed number of bins for updated dN function 
 #########################################################################################################################
 
 import sys
@@ -10,7 +11,7 @@ from NSBM_functions import *
 import pandas as pd
 import argparse
 
-path = 'path/rayleigh'
+path = 'final_sims/rayleigh'
 
 SEED=314
 
@@ -68,7 +69,7 @@ vexpl = 250.
 Lc_min = float(args.Lcmin)
 
 if numsample == 100:
-    nbins = 50
+    nbins = 100
     Lc_max = 1.0
 
     N_tot = vel_dis_NBM(mtarget, mkill, vkill, vtarget, rtarget, nbins, Lc_min, Lc_max,

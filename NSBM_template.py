@@ -1,7 +1,8 @@
 #########################################################################################################################
 # implementation of the NSBM in the context of an ASAT test
 # authored by Sarah Thiele
-# last updated August 24th, 2021 --v5    
+# last updated August 25th, 2021 --v6
+# added in new dN function, changed number of bins from 50 to 100.
 #########################################################################################################################
 
 import sys
@@ -10,7 +11,7 @@ from NSBM_functions import *
 import pandas as pd
 import argparse
 
-path = 'path/NSBM'
+path = 'final_sims/NSBM'
 
 SEED=314
 
@@ -61,7 +62,7 @@ vtarget, rtarget = get_target_params(mtarget, vr, r, Q, inc, omega)
 #########################################################################################################################
 # fragments parameters
 
-nbins = 50
+nbins = 100
 Lc_min = float(args.Lcmin)
 Lc_max = 1.0
 KEkill = 130e6
@@ -312,6 +313,9 @@ plt.ylabel('Velocity Kick (km/s)', fontsize=16)
 plt.legend(loc='best', fontsize=14)
 ax.tick_params(labelsize=14)
 plt.savefig('{}/AM_vkicks_times_{}_{}.png'.format(path, Lc_min, numsample), bbox_inches='tight')
+
+
+
 
 
 
