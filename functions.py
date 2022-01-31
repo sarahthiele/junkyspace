@@ -154,7 +154,7 @@ def integrate(sim1, bfrags, hashes, tstart, tend, dt, deorbit_R, chunk_i):
 
     return sim1, times, e, inc, alt, porb, x, y, z
 
-def integrate_colprob(simchunk, AMfrags, hashes, dt, deorbit_R, chunk_i, satparams):
+def integrate_colprob(simchunk, AMfrags, hashes, dt, deorbit_R, chunk_i, satparams, maxtime):
     NALT, NTHETA, altref, dAltCo = satparams
     ps = simchunk.particles
 
@@ -230,7 +230,7 @@ def integrate_colprob(simchunk, AMfrags, hashes, dt, deorbit_R, chunk_i, satpara
         itime += 1
         time += dt
         #print('{} deorbited this step'.format(deorbit_i))
-        if time >= twopi * 2:
+        if time >= twopi * maxtime:
             print('timeout')
             ps = simchunk.particles
             for d in range(1,Np+1):
@@ -245,7 +245,7 @@ def integrate_colprob(simchunk, AMfrags, hashes, dt, deorbit_R, chunk_i, satpara
     
     return simchunk, deorbit_times, colprob, colprobperyear, nancatch
 
-def vel_dis_rayleigh(vexpl, vtarget, rtar, numsample):
+def vel_dis_rayleigh(vexpl, vtarget, rtar, numsample, AMval):
     vmags = np.random.rayleigh(vexpl, numsample)
     
     unitvecs = np.random.uniform(-1, 1, (numsample, 3))
@@ -265,7 +265,7 @@ def vel_dis_rayleigh(vexpl, vtarget, rtar, numsample):
     eccs = np.array(eccs)
     SMA = np.array(SMA)
     
-    AMfrags = 0.1 * np.ones(numsample)
+    AMfrags = AMval * np.ones(numsample)
 
     return vfrags, vfrags_total, eccs, SMA, AMfrags
 

@@ -21,11 +21,16 @@ parser.add_argument("--satdistro", default='satsnow', type=str)
 parser.add_argument("--KEkill", default=130e6, type=float)
 parser.add_argument("--path", default='satall', type=str)
 parser.add_argument("--event", default='India', type=str)
+parser.add_argument("--chunk", default=20, type=int)
+parser.add_argument("--AMval", default=0.1, type=float)
+parser.add_argument("--maxtime", default=2., type=float)
 args = parser.parse_args()
 
 path = str(args.path)
 path = '/store/users/sthiele/home/junkyspace/' + str(args.path)
 data_path = path + '/sims/rayleigh'
+if str(args.event) == 'Russia':
+    data_path = path + '/sims/russia/rayleigh'
 # Print the current working directory
 print("Current working directory: {0}".format(os.getcwd()))
 # Change the current working directory
@@ -34,6 +39,10 @@ os.chdir(path)
 print("Current working directory: {0}".format(os.getcwd()))
 
 numsample = int(args.numsample)
+Lc_min = float(args.Lcmin)
+AMval = float(args.AMval)
+maxtime = float(args.maxtime)
+KEkill = float(args.KEkill)
 altref = 300
 deorbit_R = 200.
 
@@ -57,17 +66,31 @@ dThetaCo = np.pi/NTHETA
 #########################################################################################################################
 # target parameters
 
-mtarget = 740
-mkill = 10
-vkill = 3.4e3
-Q = 288.7 + REkm
-q = 267.4 + REkm
-r = 283 + REkm
-a = (Q + q) * 1000 / 2
-vr = np.sqrt(G * (Mearthkg + mtarget) * (2/(r*1000) - 1/a))
-inc = 96.6 * np.pi / 180
-omega= 17 * np.pi / 180
-KEkill = 130e6
+if str(args.event) == 'India':
+    mtarget = 740
+    mkill = 10
+    vkill = 3.4e3
+    Q = 288.7 + REkm
+    q = 267.4 + REkm
+    r = 283 + REkm
+    a = (Q + q) * 1000 / 2
+    vr = np.sqrt(G * (Mearthkg + mtarget) * (2/(r*1000) - 1/a))
+    inc = 96.6 * np.pi / 180
+    omega = 17 * np.pi / 180
+elif str(args.event) == 'Russia':
+    mtarget = 2200
+    mkill = 10
+    vkill = 3.2e3
+    Q = 497.5 + REkm
+    q = 472.0 + REkm
+    r = 490.0 + REkm
+    a = (Q + q) * 1000 / 2
+    vr = np.sqrt(G * (Mearthkg + mtarget) * (2/(r*1000) - 1/a))
+    inc = 82.6 * np.pi / 180
+    omega= 0. * np.pi / 180
+else:
+    print('invalid ASAT event. Choose from ["India", "Russia"].')
+    
 vtarget, rtarget = get_target_params(mtarget, vr, r, Q, inc, omega)
 
 EXPLODE = KEkill / 3
@@ -75,8 +98,6 @@ vexpl = 250.
 
 #########################################################################################################################
 # fragments parameters
-
-Lc_min = float(args.Lcmin)
 
 if numsample == 100:
     nbins = 100
@@ -86,7 +107,7 @@ if numsample == 100:
                         KEkill, numsample, makev=False)
     numsample = N_tot
 
-vfrags, vfrags_total, eccs, SMA, AMfrags = vel_dis_rayleigh(vexpl, vtarget, rtarget, numsample)
+vfrags, vfrags_total, eccs, SMA, AMfrags = vel_dis_rayleigh(vexpl, vtarget, rtarget, numsample, AMval)
 
 #########################################################################################################################
 # plot initial parameter distributions
@@ -223,7 +244,8 @@ while ilast >= 0:
         AMfrag = AMfrags
     simafter, deorbit_time, colprob, colprobperyear, nancatch = integrate_colprob(simchunk, AMfrag, num, 
                                                                         dt=dt, deorbit_R=deorbit_R, 
-                                                                        chunk_i=chunk_i, satparams=satparams)
+                                                                        chunk_i=chunk_i, satparams=satparams,
+                                                                                 maxtime=maxtime)
     deorbit_times = np.append(deorbit_times, deorbit_time)
     colprobs = np.append(colprobs, colprob)
     colprobperyears = np.append(colprobperyears, colprobperyear)
