@@ -1,17 +1,14 @@
 #########################################################################################################################
 # implementation of a Rayleigh vkick distribution in the context of an ASAT test
 # authored by Sarah Thiele
-# last updated August 26th, 2021 --v4
-# changed number of bins for updated dN function 
 #########################################################################################################################
 
 import sys
-sys.path.insert(1, '/store/users/sthiele/home/ASATtest/')
+sys.path.insert(1, '/store/users/sthiele/home/junkyspace/')
 from NSBM_functions import *
 import pandas as pd
 import argparse
-
-path = 'final_sims/rayleigh'
+import os
 
 SEED=314
 
@@ -21,7 +18,20 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--numsample", default=1000, type=int)
 parser.add_argument("--Lcmin", default=0.01, type=float)
 parser.add_argument("--satdistro", default='satsnow', type=str)
+parser.add_argument("--KEkill", default=130e6, type=float)
+parser.add_argument("--path", default='satall', type=str)
+parser.add_argument("--event", default='India', type=str)
 args = parser.parse_args()
+
+path = str(args.path)
+path = '/store/users/sthiele/home/junkyspace/' + str(args.path)
+data_path = path + '/sims/rayleigh'
+# Print the current working directory
+print("Current working directory: {0}".format(os.getcwd()))
+# Change the current working directory
+os.chdir(path)
+# Print the current working directory
+print("Current working directory: {0}".format(os.getcwd()))
 
 numsample = int(args.numsample)
 altref = 300
@@ -93,7 +103,7 @@ plt.ylabel('Counts', fontsize=16)
 plt.xscale('log')
 ax.tick_params(labelsize=14)    
 plt.title('Mtarget={:.4} ton, Vtarget={:.4} km/s, Mkill={} kg,\nKill Energy={:.4} GJ, Intercept Height={:.4} km'.format(mtarget*1./1000, np.round(mag(vtarget), 1)/1e3, mkill, KEkill/1e9, r-REkm), fontsize=16)
-plt.savefig('{}/init_dis_{}_{}.png'.format(path, Lc_min, numsample), bbox_inches='tight')
+plt.savefig('{}/init_dis_{}_{}.png'.format(data_path, Lc_min, numsample), bbox_inches='tight')
 
 #########################################################################################################################
 # make cuts in SMA
@@ -138,7 +148,7 @@ plt.xlabel(r'P$_{\rm{orb}}$ (hr)', fontsize=16)
 plt.ylabel('Altitude (km)', fontsize=16)
 plt.legend(fontsize=14, markerscale=3)
 ax.tick_params(labelsize=14)
-plt.savefig('{}/init_gabbard_kept_LEO_{}_{}.png'.format(path, Lc_min, numsample), bbox_inches='tight')
+plt.savefig('{}/init_gabbard_kept_LEO_{}_{}.png'.format(data_path, Lc_min, numsample), bbox_inches='tight')
 
 fig, ax = plt.subplots(figsize=(10,8))
 bins = np.logspace(np.log10(np.linalg.norm(vfrags, 
@@ -152,7 +162,7 @@ plt.ylabel('Counts', fontsize=16)
 plt.xscale('log')
 ax.tick_params(labelsize=14)    
 plt.title('Mtarget={:.4} ton, Vtarget={:.4} km/s, Mkill={} kg,\nKill Energy={:.4} GJ, Intercept Height={:.4} km'.format(mtarget*1./1000, np.round(mag(vtarget), 1)/1e3, mkill, KEkill/1e9, r-REkm), fontsize=16)
-plt.savefig('{}/kept_init_dis_{}_{}.png'.format(path, Lc_min, numsample), bbox_inches='tight')
+plt.savefig('{}/kept_init_dis_{}_{}.png'.format(data_path, Lc_min, numsample), bbox_inches='tight')
 
 #########################################################################################################################
 # add position variations of order 10 metres to all fragments
@@ -238,9 +248,9 @@ df3 = pd.DataFrame(data3.T, columns=['vkick', 'AM', 'SMA', 'ecc', 't_deorbit', '
 
 datadf = df.append(df3)
 datadf = datadf.sort_values('t_deorbit')
-datadf.to_hdf('{}/data_{}_{}.hdf'.format(path, Lc_min, numsample), key='data')
+datadf.to_hdf('{}/data_{}_{}.hdf'.format(data_path, Lc_min, numsample), key='data')
 dataother = pd.DataFrame(np.array([nancatch]), columns=['nancatch'])
-dataother.to_hdf('{}/data_{}_{}.hdf'.format(path, Lc_min, numsample), key='nancatch')
+dataother.to_hdf('{}/data_{}_{}.hdf'.format(data_path, Lc_min, numsample), key='nancatch')
 
 timedf = pd.DataFrame(datadf.loc[datadf.t_deorbit < 1e6].t_deorbit.values.T, columns=['time'])
 cumsum = np.cumsum(timedf.groupby('time').size().values)
@@ -251,7 +261,7 @@ plt.xlabel('Time (yrs)', fontsize=16)
 plt.ylabel('Fraction of Fragments Deorbited', fontsize=16)
 ax.tick_params(labelsize=14)
 plt.title('{:.4}% deorbited after 2 years'.format(cumsum[-1]/NFOLLOW*100), fontsize=16)
-plt.savefig('{}/deorbit_times_{}_{}.png'.format(path, Lc_min, numsample), bbox_inches='tight')
+plt.savefig('{}/deorbit_times_{}_{}.png'.format(data_path, Lc_min, numsample), bbox_inches='tight')
 
 flaglo = datadf.t_deorbit.values < 1e6
 flaghi = datadf.t_deorbit.values == 1e6
@@ -271,7 +281,7 @@ plt.ylabel('Log$_{10}$(coll. prob per year)', fontsize=16)
 plt.xlabel('Velocity Kick (km/s)', fontsize=16)
 plt.legend(loc='best', fontsize=14)
 ax.tick_params(labelsize=14)
-plt.savefig('{}/vkicks_colprob_times_{}_{}.png'.format(path, Lc_min, numsample), bbox_inches='tight')
+plt.savefig('{}/vkicks_colprob_times_{}_{}.png'.format(data_path, Lc_min, numsample), bbox_inches='tight')
 
 
 

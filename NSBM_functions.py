@@ -1,5 +1,3 @@
-# Updated August 10th, 2021
-
 import rebound
 import reboundx 
 import rebound.units as u
@@ -10,8 +8,8 @@ from mpl_toolkits.mplot3d import Axes3D
 from scipy.stats import maxwell as maxwell
 import scipy.stats
 
-import sys
-sys.path.insert(1, '/store/users/sthiele/home/ASATtest/')
+#import sys
+#sys.path.insert(1, '/store/users/sthiele/home/junkyspace/')
 from fromaaron.asat_sma import *
 from functions import *
 
