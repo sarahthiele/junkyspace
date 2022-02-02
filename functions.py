@@ -154,7 +154,8 @@ def integrate(sim1, bfrags, hashes, tstart, tend, dt, deorbit_R, chunk_i):
 
     return sim1, times, e, inc, alt, porb, x, y, z
 
-def integrate_colprob(simchunk, AMfrags, hashes, dt, deorbit_R, chunk_i, satparams, maxtime):
+def integrate_colprob(simchunk, AMfrags, hashes, dt, deorbit_R, chunk_i, satparams,
+                      maxtime, event):
     NALT, NTHETA, altref, dAltCo = satparams
     ps = simchunk.particles
 
@@ -183,6 +184,12 @@ def integrate_colprob(simchunk, AMfrags, hashes, dt, deorbit_R, chunk_i, satpara
     # add gas drag
     gd = rebx.load_force("gas_drag")
     rebx.add_force(gd)
+    
+    # Solar minimum occured in Dec. 2019. Therefore to account for solar cycle:
+    if event == 'India':  # India ASAT occured March 2019
+        gd.params["solar_phase"]= twopi * (1-(9/12)/22)
+    if event == 'Russia':  # Russia ASAT occured Nov. 2022 
+        gd.params["solar_phase"] = twopi * (1+11/12)/22
     gd.params["code_to_yr"]= 1. / twopi
     gd.params["density_mks_to_code"] = aum**3 / Msunkg
     gd.params["dist_to_m"] = aum

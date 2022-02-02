@@ -124,7 +124,7 @@ plt.ylabel('Counts', fontsize=16)
 plt.xscale('log')
 ax.tick_params(labelsize=14)    
 plt.title('Mtarget={:.4} ton, Vtarget={:.4} km/s, Mkill={} kg,\nKill Energy={:.4} GJ, Intercept Height={:.4} km'.format(mtarget*1./1000, np.round(mag(vtarget), 1)/1e3, mkill, KEkill/1e9, r-REkm), fontsize=16)
-plt.savefig('{}/init_dis_{}_{}.png'.format(data_path, Lc_min, numsample), bbox_inches='tight')
+plt.savefig('{}/init_dis_{}_{}_{}_{}.png'.format(data_path, Lc_min, numsample, KEkill/1e9, maxtime), bbox_inches='tight')
 
 #########################################################################################################################
 # make cuts in SMA
@@ -169,7 +169,8 @@ plt.xlabel(r'P$_{\rm{orb}}$ (hr)', fontsize=16)
 plt.ylabel('Altitude (km)', fontsize=16)
 plt.legend(fontsize=14, markerscale=3)
 ax.tick_params(labelsize=14)
-plt.savefig('{}/init_gabbard_kept_LEO_{}_{}.png'.format(data_path, Lc_min, numsample), bbox_inches='tight')
+plt.savefig('{}/init_gabbard_kept_LEO_{}_{}_{}_{}.png'.format(data_path, Lc_min, numsample, KEkill/1e9, maxtime),
+            bbox_inches='tight')
 
 fig, ax = plt.subplots(figsize=(10,8))
 bins = np.logspace(np.log10(np.linalg.norm(vfrags, 
@@ -183,7 +184,8 @@ plt.ylabel('Counts', fontsize=16)
 plt.xscale('log')
 ax.tick_params(labelsize=14)    
 plt.title('Mtarget={:.4} ton, Vtarget={:.4} km/s, Mkill={} kg,\nKill Energy={:.4} GJ, Intercept Height={:.4} km'.format(mtarget*1./1000, np.round(mag(vtarget), 1)/1e3, mkill, KEkill/1e9, r-REkm), fontsize=16)
-plt.savefig('{}/kept_init_dis_{}_{}.png'.format(data_path, Lc_min, numsample), bbox_inches='tight')
+plt.savefig('{}/kept_init_dis_{}_{}_{}_{}.png'.format(data_path, Lc_min, numsample, KEkill/1e9, maxtime),
+            bbox_inches='tight')
 
 #########################################################################################################################
 # add position variations of order 10 metres to all fragments
@@ -245,7 +247,7 @@ while ilast >= 0:
     simafter, deorbit_time, colprob, colprobperyear, nancatch = integrate_colprob(simchunk, AMfrag, num, 
                                                                         dt=dt, deorbit_R=deorbit_R, 
                                                                         chunk_i=chunk_i, satparams=satparams,
-                                                                                 maxtime=maxtime)
+                                                                                 maxtime=maxtime, event=event)
     deorbit_times = np.append(deorbit_times, deorbit_time)
     colprobs = np.append(colprobs, colprob)
     colprobperyears = np.append(colprobperyears, colprobperyear)
@@ -270,9 +272,9 @@ df3 = pd.DataFrame(data3.T, columns=['vkick', 'AM', 'SMA', 'ecc', 't_deorbit', '
 
 datadf = df.append(df3)
 datadf = datadf.sort_values('t_deorbit')
-datadf.to_hdf('{}/data_{}_{}.hdf'.format(data_path, Lc_min, numsample), key='data')
+datadf.to_hdf('{}/data_{}_{}_{}_{}.png'.format(data_path, Lc_min, numsample, KEkill/1e9, maxtime), key='data')
 dataother = pd.DataFrame(np.array([nancatch]), columns=['nancatch'])
-dataother.to_hdf('{}/data_{}_{}.hdf'.format(data_path, Lc_min, numsample), key='nancatch')
+dataother.to_hdf('{}/data_{}_{}_{}_{}.png'.format(data_path, Lc_min, numsample, KEkill/1e9, maxtime), key='nancatch')
 
 timedf = pd.DataFrame(datadf.loc[datadf.t_deorbit < 1e6].t_deorbit.values.T, columns=['time'])
 cumsum = np.cumsum(timedf.groupby('time').size().values)
@@ -282,8 +284,8 @@ plt.plot(timedf.groupby('time').first().index.values/twopi, cumsum/NFOLLOW, lw=1
 plt.xlabel('Time (yrs)', fontsize=16)
 plt.ylabel('Fraction of Fragments Deorbited', fontsize=16)
 ax.tick_params(labelsize=14)
-plt.title('{:.4}% deorbited after 2 years'.format(cumsum[-1]/NFOLLOW*100), fontsize=16)
-plt.savefig('{}/deorbit_times_{}_{}.png'.format(data_path, Lc_min, numsample), bbox_inches='tight')
+plt.title('{:.4}% deorbited after {} years'.format(cumsum[-1]/NFOLLOW*100, maxtime), fontsize=16)
+plt.savefig('{}/deorbit_times_{}_{}_{}_{}.png'.format(data_path, Lc_min, numsample, KEkill/1e9, maxtime), bbox_inches='tight')
 
 flaglo = datadf.t_deorbit.values < 1e6
 flaghi = datadf.t_deorbit.values == 1e6
@@ -293,9 +295,9 @@ fig, ax = plt.subplots(figsize=(10,8))
 plt.scatter(datadf.vkick.values[flageject]/1000, np.log10(datadf.colprobperyear.values[flageject]),
             c='xkcd:cyan', label=r'ejected fragments')
 plt.scatter(datadf.vkick.values[flaghi]/1000, np.log10(datadf.colprobperyear.values[flaghi]),
-            c='r', label=r't$_{\rm{deorbit}} \geq$ 2yrs')
+            c='r', label=r't$_{\rm{deorbit}} \geq$ '+'{}yrs'.format(maxtime))
 plt.scatter(datadf.vkick.values[flaglo]/1000, np.log10(datadf.colprobperyear.values[flaglo]),
-            c=datadf.t_deorbit.values[flaglo]/twopi, label=r't$_{\rm{deorbit}}$ < 2yrs')
+            c=datadf.t_deorbit.values[flaglo]/twopi, label=r't$_{\rm{deorbit}}$ < '+'{}yrs'.format(maxtime))
 cb = plt.colorbar()
 cb.ax.set_ylabel('Deorbit Time (yrs)', fontsize=16)
 cb.ax.tick_params(labelsize=14)
@@ -303,7 +305,8 @@ plt.ylabel('Log$_{10}$(coll. prob per year)', fontsize=16)
 plt.xlabel('Velocity Kick (km/s)', fontsize=16)
 plt.legend(loc='best', fontsize=14)
 ax.tick_params(labelsize=14)
-plt.savefig('{}/vkicks_colprob_times_{}_{}.png'.format(data_path, Lc_min, numsample), bbox_inches='tight')
+plt.savefig('{}/vkicks_colprob_times_{}_{}_{}_{}.png'.format(data_path, Lc_min, numsample, KEkill/1e9, maxtime), 
+            bbox_inches='tight')
 
 
 
