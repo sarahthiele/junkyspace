@@ -155,7 +155,12 @@ def integrate(sim1, bfrags, hashes, tstart, tend, dt, deorbit_R, chunk_i):
     return sim1, times, e, inc, alt, porb, x, y, z
 
 def integrate_colprob(simchunk, AMfrags, hashes, dt, deorbit_R, chunk_i, satparams,
-                      maxtime, event):
+                      maxtime, event, plottime=None, plotpath=None):
+    if plottime != None:
+        plot = True
+    else:
+        plot = False
+        
     NALT, NTHETA, altref, dAltCo = satparams
     ps = simchunk.particles
 
@@ -209,9 +214,7 @@ def integrate_colprob(simchunk, AMfrags, hashes, dt, deorbit_R, chunk_i, satpara
     print('fragment {}'.format(chunk_i))
     while len(ps) > 1:
         deorbit_i = 0
-        #print("\nWorking on time {}, t={}, chunk={},\nNumber of debris in orbit: {}".format(itime, time, 
-                                                                                            #chunk_i, 
-                                                                                           # len(deorbit_times[deorbit_times==1])))
+
         simchunk.integrate(time)
 
         ps = simchunk.particles
@@ -236,7 +239,35 @@ def integrate_colprob(simchunk, AMfrags, hashes, dt, deorbit_R, chunk_i, satpara
                         simchunk.remove(hash=h)
         itime += 1
         time += dt
-        #print('{} deorbited this step'.format(deorbit_i))
+        
+        if plot == True:
+            if time >= twopi * plottime:
+                ps = simchunk.particles
+                SMA = []
+                eccs = []
+                porb = []
+                Np = len(ps)-1
+                for d in range(1,Np+1):
+                    SMA.append(ps[d].a*aum)
+                    eccs.append(ps[d].e)
+                    porb.append(period(ps[d].a*aum, G*Mearthkg))
+                SMA = np.array(SMA)
+                eccs = np.array(eccs)
+                porb = np.array(porb)
+                    
+                flag = SMA*(1+eccs)/1000-REkm <= 2000
+                fig, ax = plt.subplots(figsize=(10, 8))
+                plt.scatter(porb[flag]/3600, (SMA*(1-eccs)/1000-REkm)[flag], s=5, color='r', label='peri')
+                plt.scatter(porb[flag]/3600, (SMA*(1+eccs)/1000-REkm)[flag], s=5, color='b', label='apo')
+                plt.axhline(283, ls='-.', lw=1.5, color='xkcd:light blue', label='Microsat-R')
+                plt.axhline(400., ls='--', lw=1.5, color='k', label='ISS')
+                plt.xlabel(r'P$_{\rm{orb}}$ (hr)', fontsize=16)
+                plt.ylabel('Altitude (km)', fontsize=16)
+                plt.legend(fontsize=14, markerscale=3)
+                ax.tick_params(labelsize=14)
+                plt.savefig(plotpath, bbox_inches='tight')
+                plot = False
+                
         if time >= twopi * maxtime:
             print('timeout')
             ps = simchunk.particles

@@ -24,6 +24,7 @@ parser.add_argument("--event", default='India', type=str)
 parser.add_argument("--chunk", default=20, type=int)
 parser.add_argument("--AMval", default=0.1, type=float)
 parser.add_argument("--maxtime", default=2., type=float)
+parser.add_argument("--plottime", default=0.0, type=float)
 args = parser.parse_args()
 
 path = str(args.path)
@@ -66,7 +67,8 @@ dThetaCo = np.pi/NTHETA
 #########################################################################################################################
 # target parameters
 
-if str(args.event) == 'India':
+event = str(args.event)
+if event == 'India':
     mtarget = 740
     mkill = 10
     vkill = 3.4e3
@@ -77,7 +79,7 @@ if str(args.event) == 'India':
     vr = np.sqrt(G * (Mearthkg + mtarget) * (2/(r*1000) - 1/a))
     inc = 96.6 * np.pi / 180
     omega = 17 * np.pi / 180
-elif str(args.event) == 'Russia':
+elif event == 'Russia':
     mtarget = 2200
     mkill = 10
     vkill = 3.2e3
@@ -124,7 +126,7 @@ plt.ylabel('Counts', fontsize=16)
 plt.xscale('log')
 ax.tick_params(labelsize=14)    
 plt.title('Mtarget={:.4} ton, Vtarget={:.4} km/s, Mkill={} kg,\nKill Energy={:.4} GJ, Intercept Height={:.4} km'.format(mtarget*1./1000, np.round(mag(vtarget), 1)/1e3, mkill, KEkill/1e9, r-REkm), fontsize=16)
-plt.savefig('{}/init_dis_{}_{}_{}_{}.png'.format(data_path, Lc_min, numsample, KEkill/1e9, maxtime), bbox_inches='tight')
+plt.savefig('{}/init_dis_{}_{}_{}_{}.png'.format(data_path, AMval, numsample, KEkill/1e9, maxtime), bbox_inches='tight')
 
 #########################################################################################################################
 # make cuts in SMA
@@ -169,7 +171,7 @@ plt.xlabel(r'P$_{\rm{orb}}$ (hr)', fontsize=16)
 plt.ylabel('Altitude (km)', fontsize=16)
 plt.legend(fontsize=14, markerscale=3)
 ax.tick_params(labelsize=14)
-plt.savefig('{}/init_gabbard_kept_LEO_{}_{}_{}_{}.png'.format(data_path, Lc_min, numsample, KEkill/1e9, maxtime),
+plt.savefig('{}/init_gabbard_kept_LEO_{}_{}_{}_{}.png'.format(data_path, AMval, numsample, KEkill/1e9, maxtime),
             bbox_inches='tight')
 
 fig, ax = plt.subplots(figsize=(10,8))
@@ -184,7 +186,7 @@ plt.ylabel('Counts', fontsize=16)
 plt.xscale('log')
 ax.tick_params(labelsize=14)    
 plt.title('Mtarget={:.4} ton, Vtarget={:.4} km/s, Mkill={} kg,\nKill Energy={:.4} GJ, Intercept Height={:.4} km'.format(mtarget*1./1000, np.round(mag(vtarget), 1)/1e3, mkill, KEkill/1e9, r-REkm), fontsize=16)
-plt.savefig('{}/kept_init_dis_{}_{}_{}_{}.png'.format(data_path, Lc_min, numsample, KEkill/1e9, maxtime),
+plt.savefig('{}/kept_init_dis_{}_{}_{}_{}.png'.format(data_path, AMval, numsample, KEkill/1e9, maxtime),
             bbox_inches='tight')
 
 #########################################################################################################################
@@ -209,6 +211,15 @@ for i in range(len(vfrags)):
 
 #########################################################################################################################
 # integrate in chunks
+
+plottime = float(args.plottime)
+if plottime != 0.0:
+    plotmid = True
+    plotpath = data_path + '/gabbard_{}_LEO_{}_{}_{}_{}.png'.format(plottime, AMval, numsample,
+                                                                    KEkill/1e9, maxtime)
+else:
+    plottime = None
+    plotpath = None
 
 satparams = [NALT, NTHETA, altref, dAltCo]
 
@@ -247,7 +258,8 @@ while ilast >= 0:
     simafter, deorbit_time, colprob, colprobperyear, nancatch = integrate_colprob(simchunk, AMfrag, num, 
                                                                         dt=dt, deorbit_R=deorbit_R, 
                                                                         chunk_i=chunk_i, satparams=satparams,
-                                                                                 maxtime=maxtime, event=event)
+                                                                                 maxtime=maxtime, event=event,
+                                                                                 plottime=plottime, plotpath=plotpath)
     deorbit_times = np.append(deorbit_times, deorbit_time)
     colprobs = np.append(colprobs, colprob)
     colprobperyears = np.append(colprobperyears, colprobperyear)
@@ -272,9 +284,9 @@ df3 = pd.DataFrame(data3.T, columns=['vkick', 'AM', 'SMA', 'ecc', 't_deorbit', '
 
 datadf = df.append(df3)
 datadf = datadf.sort_values('t_deorbit')
-datadf.to_hdf('{}/data_{}_{}_{}_{}.png'.format(data_path, Lc_min, numsample, KEkill/1e9, maxtime), key='data')
+datadf.to_hdf('{}/data_{}_{}_{}_{}.hdf'.format(data_path, AMval, numsample, KEkill/1e9, maxtime), key='data')
 dataother = pd.DataFrame(np.array([nancatch]), columns=['nancatch'])
-dataother.to_hdf('{}/data_{}_{}_{}_{}.png'.format(data_path, Lc_min, numsample, KEkill/1e9, maxtime), key='nancatch')
+dataother.to_hdf('{}/data_{}_{}_{}_{}.hdf'.format(data_path, AMval, numsample, KEkill/1e9, maxtime), key='nancatch')
 
 timedf = pd.DataFrame(datadf.loc[datadf.t_deorbit < 1e6].t_deorbit.values.T, columns=['time'])
 cumsum = np.cumsum(timedf.groupby('time').size().values)
@@ -285,7 +297,7 @@ plt.xlabel('Time (yrs)', fontsize=16)
 plt.ylabel('Fraction of Fragments Deorbited', fontsize=16)
 ax.tick_params(labelsize=14)
 plt.title('{:.4}% deorbited after {} years'.format(cumsum[-1]/NFOLLOW*100, maxtime), fontsize=16)
-plt.savefig('{}/deorbit_times_{}_{}_{}_{}.png'.format(data_path, Lc_min, numsample, KEkill/1e9, maxtime), bbox_inches='tight')
+plt.savefig('{}/deorbit_times_{}_{}_{}_{}.png'.format(data_path, AMval, numsample, KEkill/1e9, maxtime), bbox_inches='tight')
 
 flaglo = datadf.t_deorbit.values < 1e6
 flaghi = datadf.t_deorbit.values == 1e6
@@ -305,7 +317,7 @@ plt.ylabel('Log$_{10}$(coll. prob per year)', fontsize=16)
 plt.xlabel('Velocity Kick (km/s)', fontsize=16)
 plt.legend(loc='best', fontsize=14)
 ax.tick_params(labelsize=14)
-plt.savefig('{}/vkicks_colprob_times_{}_{}_{}_{}.png'.format(data_path, Lc_min, numsample, KEkill/1e9, maxtime), 
+plt.savefig('{}/vkicks_colprob_times_{}_{}_{}_{}.png'.format(data_path, AMval, numsample, KEkill/1e9, maxtime), 
             bbox_inches='tight')
 
 

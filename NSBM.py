@@ -23,6 +23,7 @@ parser.add_argument("--path", default='satall', type=str)
 parser.add_argument("--event", default='India', type=str)
 parser.add_argument("--chunk", default=20, type=int)
 parser.add_argument("--maxtime", default=2., type=float)
+parser.add_argument("--plottime", default=0.0, type=float)
 args = parser.parse_args()
 
 path = str(args.path)
@@ -36,7 +37,7 @@ print("Current working directory: {0}".format(os.getcwd()))
 os.chdir(path)
 # Print the current working directory
 print("Current working directory: {0}".format(os.getcwd()))
-
+    
 event = str(args.event)
 numsample = int(args.numsample)
 maxtime = float(args.maxtime)
@@ -248,6 +249,15 @@ for i in range(len(vfrags)):
 #########################################################################################################################
 # integrate in chunks
 
+plottime = float(args.plottime)
+if plottime != 0.0:
+    plotmid = True
+    plotpath = data_path + '/gabbard_{}_LEO_{}_{}_{}_{}.png'.format(plottime, Lc_min, numsample,
+                                                                    KEkill/1e9, maxtime)
+else:
+    plottime = None
+    plotpath = None
+    
 satparams = [NALT, NTHETA, altref, dAltCo]
 
 halfhr = twopi / (365.25 * 24) / 2
@@ -285,7 +295,8 @@ while ilast >= 0:
     simafter, deorbit_time, colprob, colprobperyear, nancatch = integrate_colprob(simchunk, AMfrag, num, 
                                                                         dt=dt, deorbit_R=deorbit_R, 
                                                                         chunk_i=chunk_i, satparams=satparams,
-                                                                                 maxtime=maxtime, event=event)
+                                                                                 maxtime=maxtime, event=event,
+                                                                                 plottime=plottime, plotpath=plotpath)
     deorbit_times = np.append(deorbit_times, deorbit_time)
     colprobs = np.append(colprobs, colprob)
     colprobperyears = np.append(colprobperyears, colprobperyear)
