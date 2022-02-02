@@ -251,8 +251,7 @@ for i in range(len(vfrags)):
 
 plottime = float(args.plottime)
 if plottime != 0.0:
-    plotmid = True
-    plotpath = data_path + '/gabbard_{}_LEO_{}_{}_{}_{}.png'.format(plottime, Lc_min, numsample,
+    plotpath = data_path + '/gabbard_{}_LEO_{}_{}_{}_{}.hdf'.format(plottime, Lc_min, numsample,
                                                                     KEkill/1e9, maxtime)
 else:
     plottime = None

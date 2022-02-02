@@ -2,6 +2,7 @@ import rebound
 import reboundx 
 import rebound.units as u
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 from mpl_toolkits.mplot3d import Axes3D
@@ -254,19 +255,8 @@ def integrate_colprob(simchunk, AMfrags, hashes, dt, deorbit_R, chunk_i, satpara
                 SMA = np.array(SMA)
                 eccs = np.array(eccs)
                 porb = np.array(porb)
-                    
-                flag = SMA*(1+eccs)/1000-REkm <= 2000
-                fig, ax = plt.subplots(figsize=(10, 8))
-                plt.scatter(porb[flag]/3600, (SMA*(1-eccs)/1000-REkm)[flag], s=5, color='r', label='peri')
-                plt.scatter(porb[flag]/3600, (SMA*(1+eccs)/1000-REkm)[flag], s=5, color='b', label='apo')
-                plt.axhline(283, ls='-.', lw=1.5, color='xkcd:light blue', label='Microsat-R')
-                plt.axhline(400., ls='--', lw=1.5, color='k', label='ISS')
-                plt.xlabel(r'P$_{\rm{orb}}$ (hr)', fontsize=16)
-                plt.ylabel('Altitude (km)', fontsize=16)
-                plt.legend(fontsize=14, markerscale=3)
-                ax.tick_params(labelsize=14)
-                plt.savefig(plotpath, bbox_inches='tight')
-                plot = False
+                df = pd.DataFrame(np.array([SMA, eccs, porb]).T, columns=['SMA', 'e', 'porb'])
+                df.to_hdf(plotpath, key='data', format='t', append=True)
                 
         if time >= twopi * maxtime:
             print('timeout')
