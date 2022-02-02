@@ -212,7 +212,7 @@ def integrate_colprob(simchunk, AMfrags, hashes, dt, deorbit_R, chunk_i, satpara
     itime = 1
     nancatch = 0
     time = dt
-    print('fragment {}'.format(chunk_i))
+    print('chunk {}'.format(chunk_i))
     while len(ps) > 1:
         deorbit_i = 0
 

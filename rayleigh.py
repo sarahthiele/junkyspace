@@ -216,6 +216,8 @@ plottime = float(args.plottime)
 if plottime != 0.0:
     plotpath = data_path + '/gabbard_{}_LEO_{}_{}_{}_{}.hdf'.format(plottime, AMval, numsample,
                                                                     KEkill/1e9, maxtime)
+    df0 = pd.DataFrame(columns=['SMA', 'e', 'porb'])
+    df0.to_hdf(plotpath, key='data', format='t', append=True)
 else:
     plottime = None
     plotpath = None
