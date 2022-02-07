@@ -257,6 +257,7 @@ def integrate_colprob(simchunk, AMfrags, hashes, dt, deorbit_R, chunk_i, satpara
                 porb = np.array(porb)
                 df = pd.DataFrame(np.array([SMA, eccs, porb]).T, columns=['SMA', 'e', 'porb'])
                 df.to_hdf(plotpath, key='data', format='t', append=True)
+                plot = False
                 
         if time >= twopi * maxtime:
             print('timeout')

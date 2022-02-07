@@ -52,7 +52,7 @@ if satdistro == 'satsnow':
     altCoMin =(300.+REkm)/aukm
     altCoMax=(1500+REkm)/aukm
     
-elif satdistro == 'sats2019':
+elif satdistro == 'satsold':
     NTHETA= 180
     NALT=1700
     altCoMin=(300.+REkm)/aukm
