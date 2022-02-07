@@ -1,4 +1,5 @@
 #########################################################################################################################
+# ! these are old templates ! Do not use (use rayleigh.py instead)
 # implementation of a Rayleigh vkick distribution in the context of an ASAT test
 # authored by Sarah Thiele
 #########################################################################################################################
