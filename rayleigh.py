@@ -4,7 +4,7 @@
 #########################################################################################################################
 
 import sys
-sys.path.insert(1, '/store/users/sthiele/home/junkyspace/')
+sys.path.insert(1, '/store/users/sthiele/home/js_test/')
 from NSBM_functions import *
 import pandas as pd
 import argparse
@@ -28,10 +28,12 @@ parser.add_argument("--plottime", default=0.0, type=float)
 args = parser.parse_args()
 
 path = str(args.path)
-path = '/store/users/sthiele/home/junkyspace/' + str(args.path)
+path = '/store/users/sthiele/home/js_test/' + str(args.path)
 data_path = path + '/sims/rayleigh'
 if str(args.event) == 'Russia':
     data_path = path + '/sims/russia/rayleigh'
+elif str(args.event) == 'FTG15':
+    data_path= path + '/sims/FTG15/rayleigh'
 # Print the current working directory
 print("Current working directory: {0}".format(os.getcwd()))
 # Change the current working directory
@@ -85,11 +87,26 @@ elif event == 'Russia':
     vkill = 3.2e3
     Q = 497.5 + REkm
     q = 472.0 + REkm
-    r = 490.0 + REkm
+    r = 480.0 + REkm
     a = (Q + q) * 1000 / 2
     vr = np.sqrt(G * (Mearthkg + mtarget) * (2/(r*1000) - 1/a))
     inc = 82.6 * np.pi / 180
     omega= 0. * np.pi / 180
+elif event == 'FTG15':
+    mkill = 64.
+    vkill = 5.2e3
+    mtarget = 1e3
+    Q = 1250 + REkm
+    r = 740 + REkm
+    vr = 5.1e3
+    a = (2/(r*1e3) - vr**2/(G*Mearthkg))**(-1)/1000
+    e = Q/a - 1
+    f = np.arccos((a/r*(1-e**2)-1)/e)
+    if f < np.pi:
+        df = np.pi - f
+        f = np.pi + df
+    inc = np.arctan(2891/7967)
+    omega = 0. * np.pi / 180
 else:
     print('invalid ASAT event. Choose from ["India", "Russia"].')
     
@@ -216,7 +233,7 @@ plottime = float(args.plottime)
 if plottime != 0.0:
     plotpath = data_path + '/gabbard_{}_LEO_{}_{}_{}_{}.hdf'.format(plottime, AMval, numsample,
                                                                     KEkill/1e9, maxtime)
-    df0 = pd.DataFrame(columns=['SMA', 'e', 'porb'])
+    df0 = pd.DataFrame(columns=['SMA', 'e', 'porb', 'chunk'])
     df0.to_hdf(plotpath, key='data', format='t', append=True)
 else:
     plottime = None
@@ -226,7 +243,7 @@ satparams = [NALT, NTHETA, altref, dAltCo]
 
 halfhr = twopi / (365.25 * 24) / 2
 dt = halfhr
-chunk = 20
+chunk = int(args.chunk)
 
 i = 0
 ilast = len(sim.particles)-chunk
@@ -245,7 +262,7 @@ while ilast >= 0:
         simchunk.remove(index=1)
     for j in range(ilast):
         simchunk.remove(index=len(simchunk.particles)-1)
-    print('length of chunk: ', len(simchunk.particles)-1)
+#    print('length of chunk: ', len(simchunk.particles)-1)
     counter += len(simchunk.particles)-1
     if i == 0:
         num = nums[0:chunk-1]
@@ -266,7 +283,7 @@ while ilast >= 0:
     colprobperyears = np.append(colprobperyears, colprobperyear)
     chunk_i += 1
     nancatches += nancatch
-    print(i, ilast)
+#    print(i, ilast)
     if ilast == 0.0:
         break
     i += chunk

@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 from mpl_toolkits.mplot3d import Axes3D
 import sys
-sys.path.insert(1, '/store/users/sthiele/home/ASATtest/')
+sys.path.insert(1, '/store/users/sthiele/home/js_test/')
 from fromaaron.asat_sma import *
 
 SEED=314
@@ -193,9 +193,11 @@ def integrate_colprob(simchunk, AMfrags, hashes, dt, deorbit_R, chunk_i, satpara
     
     # Solar minimum occured in Dec. 2019. Therefore to account for solar cycle:
     if event == 'India':  # India ASAT occured March 2019
-        gd.params["solar_phase"]= twopi * (1-(9/12)/22)
+        gd.params["solar_phase"]= twopi/2 - (9/12)/22*twopi
     if event == 'Russia':  # Russia ASAT occured Nov. 2022 
-        gd.params["solar_phase"] = twopi * (1+11/12)/22
+        gd.params["solar_phase"] = twopi/2 + (1+11/12)/22*twopi
+    if event == 'FTG15':  # FTG-15 occured on May 30 2017
+        gd.params['solar_phase'] = 0.77 * np.pi
     gd.params["code_to_yr"]= 1. / twopi
     gd.params["density_mks_to_code"] = aum**3 / Msunkg
     gd.params["dist_to_m"] = aum
@@ -255,7 +257,7 @@ def integrate_colprob(simchunk, AMfrags, hashes, dt, deorbit_R, chunk_i, satpara
                 SMA = np.array(SMA)
                 eccs = np.array(eccs)
                 porb = np.array(porb)
-                df = pd.DataFrame(np.array([SMA, eccs, porb]).T, columns=['SMA', 'e', 'porb'])
+                df = pd.DataFrame(np.array([SMA, eccs, porb, np.ones(len(SMA))*chunk_i]).T, columns=['SMA', 'e', 'porb', 'chunk'])
                 df.to_hdf(plotpath, key='data', format='t', append=True)
                 plot = False
                 

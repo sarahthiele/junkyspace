@@ -4,11 +4,12 @@
 #########################################################################################################################
 
 import sys
-sys.path.insert(1, '/store/users/sthiele/home/junkyspace/')
+#sys.path.insert(1, '/store/users/sthiele/home/junkyspace/')
 from NSBM_functions import *
 import pandas as pd
 import argparse
 import os
+
 
 SEED=314
 
@@ -27,10 +28,12 @@ parser.add_argument("--plottime", default=0.0, type=float)
 args = parser.parse_args()
 
 path = str(args.path)
-path = '/store/users/sthiele/home/junkyspace/' + str(args.path)
+path = '/store/users/sthiele/home/js_test/' + str(args.path)
 data_path = path + '/sims/NSBM'
 if str(args.event) == 'Russia':
     data_path = path + '/sims/russia/NSBM'
+elif str(args.event) == 'FTG15':
+    data_path= path + '/sims/FTG15/NSBM'
 # Print the current working directory
 print("Current working directory: {0}".format(os.getcwd()))
 # Change the current working directory
@@ -81,11 +84,26 @@ elif event == 'Russia':
     vkill = 3.2e3
     Q = 497.5 + REkm
     q = 472.0 + REkm
-    r = 490.0 + REkm
+    r = 480.0 + REkm
     a = (Q + q) * 1000 / 2
     vr = np.sqrt(G * (Mearthkg + mtarget) * (2/(r*1000) - 1/a))
     inc = 82.6 * np.pi / 180
     omega= 0. * np.pi / 180
+elif event == 'FTG15':
+    mkill = 64.
+    vkill = 5.2e3
+    mtarget = 1e3
+    Q = 1250 + REkm
+    r = 740 + REkm
+    vr = 5.1e3
+    a = (2/(r*1e3) - vr**2/(G*Mearthkg))**(-1)/1000
+    e = Q/a - 1
+    f = np.arccos((a/r*(1-e**2)-1)/e)
+    if f < np.pi:
+        df = np.pi - f
+        f = np.pi + df
+    inc = np.arctan(2891/7967)
+    omega = 0. * np.pi / 180
 else:
     print('invalid ASAT event. Choose from ["India", "Russia"].')
 
@@ -246,6 +264,10 @@ for i in range(len(vfrags)):
     sim.add(m=0., vx=vfrags_total[i, 0], vy=vfrags_total[i,1], vz=vfrags_total[i,2],
            x=x[i], y=y[i], z=z[i], hash='{}'.format(i+1))
 
+#pdb.set_trace()
+#print('saving')
+#sim.save(data_path + "snapshot.bin")
+
 #########################################################################################################################
 # integrate in chunks
 
@@ -253,7 +275,7 @@ plottime = float(args.plottime)
 if plottime != 0.0:
     plotpath = data_path + '/gabbard_{}_LEO_{}_{}_{}_{}.hdf'.format(plottime, Lc_min, numsample,
                                                                     KEkill/1e9, maxtime)
-    df0 = pd.DataFrame(columns=['SMA', 'e', 'porb'])
+    df0 = pd.DataFrame(columns=['SMA', 'e', 'porb', 'chunk'])
     df0.to_hdf(plotpath, key='data', format='t', append=True)
 else:
     plottime = None
@@ -361,6 +383,7 @@ plt.legend(loc='best', fontsize=14)
 ax.tick_params(labelsize=14)
 plt.savefig('{}/AM_vkicks_times_{}_{}_{}_{}.png'.format(data_path, Lc_min, numsample, KEkill/1e9, maxtime),
             bbox_inches='tight')
+
 
 
 
