@@ -8,8 +8,6 @@ from mpl_toolkits.mplot3d import Axes3D
 from scipy.stats import maxwell as maxwell
 import scipy.stats
 
-#import sys
-#sys.path.insert(1, '/store/users/sthiele/home/junkyspace/')
 from fromaaron.asat_sma import *
 from functions import *
 
@@ -38,6 +36,17 @@ from scipy.stats import norm as norm
 # of https://arc.aiaa.org/doi/pdf/10.2514/1.G004939
 
 def get_AM_ratio(L, nums):
+    '''
+    Get area-to-mass ratio distribution of all of the debris fragments.
+    
+    INPUTS:
+    L: array of midpoint values of characteristic length bins
+    nums: array of number of fragments in each length bin (length of 
+          array must be the same as L)
+    
+    OUTPUTS:
+    Array of length sum(nums) of area-to-mass ratios.
+    '''
     nums = nums.astype(int)
     def alphaL(lamdaL):
         alphaL1 = np.zeros(len(lamdaL))
@@ -181,7 +190,7 @@ def get_delta_vs(AM):
     sigma = 0.4 * np.ones(len(chi))
     v = np.random.normal(loc=mu, scale=sigma, size=np.array([1, len(chi)]))
     magdv = 10 ** v[0]
-    unitvecs = np.random.uniform(-1, 1, (len(magdv), 3))
+    unitvecs = np.random.normal(0, 1, (len(magdv), 3))  # need to note this for future work
     vnormed = (unitvecs.T / np.linalg.norm(unitvecs, axis=1)).T
     vfrags = (vnormed.T * magdv).T
     return vfrags
@@ -245,7 +254,6 @@ def vel_dis_NBM(mtarget, mkill, vkill, vtarget, rtar, nbins, Lc_min, Lc_max,
         print(N_tot==np.sum(nums))
         print('Number of debris: ', N_tot)
         print('Total mass of debris:', M_tot)
-
     
     if makev == False:
         if numsample == 100:
@@ -412,26 +420,3 @@ def initialize(mtarget, vr, r, Q, vkill, KEkill, inc, nbins, mkill, deorbitR, sa
     else:
         return 0, FRAGS1, vfrags, vtarget, rtarget, nfar, vfrag_far, mfrags_far, nums, 0
     
-
-
-def get_delta_vs_OLD(AM):
-    '''
-    an example of what not to do :)
-    '''
-    chi = np.log10(AM)
-    mu = 0.9 * chi + 2.9
-    sigma = 0.4 * np.ones(len(chi))
-    v = np.random.normal(loc=mu, scale=sigma, size=np.array([1, len(chi)]))
-    magdv = 10 ** v[0]
-    unitv = np.random.rand(len(chi), 3)
-    vfrags = (unitv.T * magdv).T
-    return vfrags
-
-def dNum_OLD(Lc_l, Lc_h, Me):
-    '''
-    NASA Standard Breakup Model is used to find the 
-    number of debris fragments for a particular bin
-    of characteristic lengths Lc.
-    '''
-    dN = -0.171 * Me ** (0.75) * (Lc_h ** (-2.71) - Lc_l ** (-2.71))
-    return int(dN)

@@ -4,7 +4,7 @@
 #########################################################################################################################
 
 import sys
-sys.path.insert(1, '/store/users/sthiele/home/js_test/')
+sys.path.insert(1, '/store/users/sthiele/home/junkyspace/')
 from NSBM_functions import *
 import pandas as pd
 import argparse
