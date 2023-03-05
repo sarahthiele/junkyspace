@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-from fromaaron.asat_sma import period
+from tools.asat_sma import period
 import rebound.units as u
 from functions import *
 Mearthkg = u.masses_SI['mearth']
@@ -16,9 +16,6 @@ nsbm2 = pd.read_hdf('satall/sims/russia/NSBM/data_0.003_1000_0.15_10.0.hdf', key
 scales = [2876, 2876, 2876, 672936, 672936, 672936]
 rlist = [nsbm1, r1, r2, nsbm2, r1, r2]
 for i, df in enumerate(rlist):
-#    print('weird: ', len(df.loc[df.colprob<0])+len(df.loc[df.colprob>0.003]))
-#    df = df.loc[(df.colprob>=0)&(df.colprob<=0.002)]
-#    print(len(df))
     colprob = (1-np.exp(-np.sum(df.colprob.values)*scales[i]/len(df)))*100
     print('scaled: ', colprob)
     colprob = (1-np.exp(-np.sum(df.colprob.values)))*100
@@ -32,9 +29,6 @@ nsbm2 = pd.read_hdf('sat2021/sims/russia/NSBM/data_0.003_1000_0.15_10.0.hdf', ke
 scales = [2876, 2876, 2876, 672936, 672936, 672936]
 rlist = [nsbm1, r1, r2, nsbm2, r1, r2]
 for i, df in enumerate(rlist):
-#    print('weird: ', len(df.loc[df.colprob<0])+len(df.loc[df.colprob>0.003]))
-#    df = df.loc[(df.colprob>=0)&(df.colprob<=0.002)]
-#    print(len(df))
     colprob = (1-np.exp(-np.sum(df.colprob.values)*scales[i]/len(df)))*100
     print('scaled: ', colprob)
     colprob = (1-np.exp(-np.sum(df.colprob.values)))*100

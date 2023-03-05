@@ -8,34 +8,37 @@ from matplotlib.patches import Circle
 from mpl_toolkits.mplot3d import Axes3D
 import sys
 sys.path.insert(1, '/store/users/sthiele/home/junkyspace/')
-from fromaaron.asat_sma import *
+from tools.asat_sma import *
 
-SEED=314
-
-np.random.seed(SEED)
+#SEED=314
+#np.random.seed(SEED)
 
 twopi = 2 * np.pi
 aum = u.lengths_SI['au']
 aukm= aum / 1000
 RE_eq = 6378.135 / aukm
-REkm = 6378.
-Ratm = (REkm + 200) / aukm
-J2 = 1.0827e-3
+REkm = 6378. # Using ~ equatorial value 
+Ratm = (REkm + 200) / aukm  # effective size of Earth -- not really used at this time
+J2 = 1.0827e-3  # harmonics
 J4 = -1.620e-6
-Mearthkg = u.masses_SI['mearth']
-Msunkg = u.masses_SI['solarmass']
-Mearth = Mearthkg / Msunkg
-G = u.G_SI
-g0 = 9.81  # m / s^2
+Mearthkg = u.masses_SI['mearth']  # earth mass in kg
+Msunkg = u.masses_SI['solarmass']  # solar mass in kg
+Mearth = Mearthkg / Msunkg  # Earth mass in solar masses 
+g0 = 9.81  # Earth gravity in m / s^2
 vconv = np.sqrt(6.67e-11*1.989e30/1.496e11)
 to_m_per_s = aum / (3600 * 24 * 365.25) * twopi # multiply by this factor to convert rebound speed units to m/s
-tmax = twopi
+tmax = twopi  # two pi is one year in computational units !! 
 
 def cartesian_to_spherical(x, y, z):
     '''
-    Convert into spherical coordinates. x,y,z must be in au.
+    Converts positions from cartesian to spherical coordinates. 
     
-    Returns r and colatitude in km.
+    INPUT:
+    - x,y,z [arrays]: Must all be same length and be in au
+    
+    OUTPUT:
+    - r [array]: radial distance in km
+    - theta [array]: colatitude in rads
     '''
     x = x * aukm
     y = y * aukm
@@ -44,10 +47,22 @@ def cartesian_to_spherical(x, y, z):
     theta = np.arccos(z / r)
     return r, theta
 
-def get_target_params(mtarget, vr, r, Q, inc, omega):
+def get_target_params(mtarget, vr, r, Q, inc, omega, verbose=True):
     '''
-    get the target velocity and position to be combined with
-    fragment velocities/positions. The output is in m/s and m
+    Get target velocity and position to be combined with
+    fragment velocities/positions for debris cloud. 
+    
+    INPUT:
+    - mtarget [float]: target mass in kg
+    - vr [float]: velocity of TARGET at collison altitude r, in m/s
+    - r [float]: altitude of collision in km
+    - Q [float]: apogee of target in km
+    - inc [float]: orbital inclination of target in rads
+    - omega [float]: argument of pericenter of target in rads
+    
+    OUTPUT:
+    - vtarget [array]: velocity vector of target in m/s
+    - rtarget [array]: cartesian position vector of target in m
     '''
     a = (2/(r*1e3) - vr**2/(G*Mearthkg))**(-1)/1000
     e = Q/a - 1
@@ -70,14 +85,17 @@ def get_target_params(mtarget, vr, r, Q, inc, omega):
     vx0 = ps[1].vx * to_m_per_s
     vy0 = ps[1].vy * to_m_per_s
     vz0 = ps[1].vz * to_m_per_s
-    vvec = np.array([vx0, vy0, vz0])
-    unitvec = vvec / mag(vvec)
-    print(np.array([x0, y0, z0]) * aukm)
-    print(mag(np.array([x0, y0, z0]))*aukm-REkm)
-    print(vx0, vy0, vz0)
-    print(mag(vvec))
-    vtarget = vvec
+    
+    vtarget = np.array([vx0, vy0, vz0])
     rtarget = np.array([x0, y0, z0]) * aum
+    
+    if verbose:
+        print('target mass is: ', mtarget, ' kg')
+        print('rtarget is: ', np.array([x0, y0, z0]) * aukm, ' km')
+        print('altitude of target is: ', mag(np.array([x0, y0, z0]))*aukm-REkm, ' km')
+        print('velocity vector of target is: ', vx0, vy0, vz0, 'm/s')
+        print('target speed is: ', mag(vvec), 'm/s')
+        
     return vtarget, rtarget
 
 def integrate(sim1, bfrags, hashes, tstart, tend, dt, deorbit_R, chunk_i):
@@ -276,7 +294,30 @@ def integrate_colprob(simchunk, AMfrags, hashes, dt, deorbit_R, chunk_i, satpara
     
     return simchunk, deorbit_times, colprob, colprobperyear, nancatch
 
-def vel_dis_rayleigh(vexpl, vtarget, rtar, numsample, AMval):
+def vel_dis_rayleigh(vexpl, vtarget, rtarget, numsample, AMval):
+    '''
+    Generates debris cloud params using a Rayleigh velocity distribution.
+    
+    INPUT:
+    - vexpl [float]: "explosion velocity" in m/s, which sets scale param 
+                     for Rayleigh distribution. Typically 250 m/s
+    - vtarget [array]: target velocity vector, usually computed using
+                       get_target_params(), in m/s
+    - rtarget [array]: target position vector, usually computed using
+                       get_target_params(), in m
+    - numsample [int]: number of fragments to generate. Might be a full
+                       NSBM number of fragments (large!) or a smaller
+                       sampling
+    - AMval [float]: the Rayleigh distribution assumes a constant area-to-
+                     mass ratio, assigned to all the fragments. In m^2/kg
+    
+    OUTPUT:
+    - vfrags [(numsample x 3) array]: fragment velocity kick vectors in m/s
+    - vfrags_total [(numsample x 3) array]: total fragment velocities in m/s
+    - eccs [array]: debris fragment eccentricities
+    - SMA [array]: semi-major axes of fragments in m
+    - AMfrags [array]: array of length numsample of AMval, to be fed to sim
+    '''
     vmags = np.random.rayleigh(vexpl, numsample)
     
     unitvecs = np.random.uniform(-1, 1, (numsample, 3))

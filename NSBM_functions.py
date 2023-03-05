@@ -3,49 +3,32 @@ import reboundx
 import rebound.units as u
 import numpy as np
 import matplotlib.pyplot as plt
-import pdb
 from mpl_toolkits.mplot3d import Axes3D
-from scipy.stats import maxwell as maxwell
 import scipy.stats
+from scipy.stats import maxwell as maxwell
+from scipy.stats import norm as norm
 
-from fromaaron.asat_sma import *
+from tools.asat_sma import *
 from functions import *
 
-SEED=314
+#SEED=314
 
-np.random.seed(SEED)
-
-twopi = 2 * np.pi
-aum = u.lengths_SI['au']
-aukm= aum / 1000
-RE_eq = 6378.135 / aukm
-REkm = 6378.  # not entirely sure whether to use Requator or Raverage here.  Using equatorial value 
-Ratm = (REkm + 200) / aukm  # effective size of Earth -- not really used at this time
-J2 = 1.0827e-3 # harmonics
-J4 = -1.620e-6
-Mearthkg = u.masses_SI['mearth']
-Msunkg = u.masses_SI['solarmass']
-Mearth = Mearthkg / Msunkg
-G = u.G_SI
-g0 = 9.81  # m / s^2
-to_m_per_s = aum / (3600 * 24 * 365.25) * twopi # multiply by this factor to convert rebound speed units to m/s
-
-from scipy.stats import norm as norm
+#np.random.seed(SEED)
 
 # These equations come from payload parameters in Appendix B and C 
 # of https://arc.aiaa.org/doi/pdf/10.2514/1.G004939
 
 def get_AM_ratio(L, nums):
     '''
-    Get area-to-mass ratio distribution of all of the debris fragments.
+    Get area-to-mass ratio distribution of all debris fragments.
     
-    INPUTS:
-    L: array of midpoint values of characteristic length bins
-    nums: array of number of fragments in each length bin (length of 
-          array must be the same as L)
+    INPUT:
+    - L [array]: midpoint values of characteristic length bins
+    - nums [array]: array of number of fragments in each length bin (length 
+                    must be the same as L)
     
-    OUTPUTS:
-    Array of length sum(nums) of area-to-mass ratios.
+    OUTPUT:
+    - AM [array]: array of length sum(nums) of area-to-mass ratios.
     '''
     nums = nums.astype(int)
     def alphaL(lamdaL):
@@ -132,7 +115,9 @@ def get_AM_ratio(L, nums):
     for i in range(len(L[flag])):
         num = numsM[i]
         pS = scipy.stats.norm(muS[i], sig_S[i]).pdf(chi)
-        pL = aL_1[i] * scipy.stats.norm(muL_1[i], sigL_1[i]).pdf(chi) + aL_2[i] * scipy.stats.norm(muL_2[i], sigL_2[i]).pdf(chi)
+        pL = aL_1[i] * scipy.stats.norm(muL_1[i], 
+                                        sigL_1[i]).pdf(chi) + aL_2[i] * scipy.stats.norm(muL_2[i], 
+                                                                                         sigL_2[i]).pdf(chi)
         pM = a[i] * pL + (1-a[i]) * pS
         cdfM = np.cumsum(pM*dchi)
         P = np.random.uniform(size=num)
@@ -148,7 +133,9 @@ def get_AM_ratio(L, nums):
     sig1, sig2 = sigL1[flag], sigL2[flag]
     for i in range(len(L[flag])):
         num = numsL[i]
-        pL = a1[i] * scipy.stats.norm(mu1[i], sig1[i]).pdf(chi) + a2[i] * scipy.stats.norm(mu2[i], sig2[i]).pdf(chi)
+        pL = a1[i] * scipy.stats.norm(mu1[i], 
+                                      sig1[i]).pdf(chi) + a2[i] * scipy.stats.norm(mu2[i], 
+                                                                                   sig2[i]).pdf(chi)
         cdfL = np.cumsum(pL*dchi)
         P = np.random.uniform(size=num)
         cdfindices = np.digitize(P, bins=cdfL)
@@ -160,6 +147,20 @@ def get_AM_ratio(L, nums):
 
 
 def get_A_M_vals(Lvals, AM, nums):
+    '''
+    Get area and mass values of debris fragments.
+    
+    INPUT:
+    - Lvals [array]: midpoint values of characteristic length bins in m
+    - AM [array]: area-to-mass ratios of fragments, length sum(nums) in m^2/kg
+    - nums [array]: array of number of fragments in each length bin, same
+                    length as Lvals
+
+    OUTPUT:Avals, mvals, Lcvals 
+    - Avals [array]: areas of fragments in m^2
+    - mvals [array]: masses of fragments in kg
+    - Lcvals [array]: sizes array of fragments (length sum(nums)) in m
+    '''
     nums = nums.astype(int)
     def b_gamma_of_L(Lc):
         if Lc <= 0.00167:
@@ -185,6 +186,15 @@ def get_A_M_vals(Lvals, AM, nums):
     return Avals, mvals, Lcvals 
 
 def get_delta_vs(AM):
+    '''
+    Get velocity kicks of fragments from the NSBM.
+    
+    INPUT:
+    - AM [array]: area-to-mass ratios of fragments in m^2/kg
+    
+    OUTPUT:
+    - vfrags [(length(AM)x3) array]: velocity kick vectors in m/s
+    '''
     chi = np.log10(AM)
     mu = 0.9 * chi + 2.9
     sigma = 0.4 * np.ones(len(chi))
@@ -197,6 +207,45 @@ def get_delta_vs(AM):
 
 def vel_dis_NBM(mtarget, mkill, vkill, vtarget, rtar, nbins, Lc_min, Lc_max, 
                 KEkill, numsample, makev=True):
+    '''
+    Full implementation of the NASA Standard Breakup Model (NSBM) to simulate
+    a debris cloud from an on-orbit collision of a missile and a target satellite.
+    
+    INPUT:
+    - mtarget [float]: target mass in kg
+    - mkill [float]: kill vehicle mass in kg
+    - vtarget [array]: velocity vector of target in m/s
+    - rtar [array]: cartesian position vector of target in m
+    - nbins [int]: number of bins for Lc distribution
+    - Lc_min [float]: minimum characteristic length in m
+    - Lc_max [float]: maximum characteristic length in m
+    - KEkill [float]: kill energy of collision in J
+    - numsample [int]: number of debris fragments to simulate...
+       
+    !! numsample=100 will generate FULL NSBM distribution !!
+       
+    - makev [bool]: simulate/return full velocity distribution
+    
+    OUTPUT:
+    If makev=False:
+    - numsample [int]: number of fragments created according to NSBM 
+    If makev = True:
+    - N_tot [int]: total number of fragments (either numsample or NSBM number)
+    - L_mids [array]: midpoints of characteristic length bins
+    - nums [array]: number of fragments in each Lc bin
+    - mfrags [array]: masses of fragments
+    - vfrags_all [(3 x N_tot) array]: all fragment velocity kick vectors generated by NSBM
+    - vfrags [(3 x numsample) array]: velocity kick vectors of sampled fragments 
+                                      (=vfrags_all if numsample=100)
+    - vfrags_total [(3 x numsample) array]: full velocity vectors (kicks + target
+                                            velocity) of sampled fragments
+    - eccs [array]: eccentricities of sampled fragments
+    - SMA [array]: semi-major axes of sampled fragments
+    - AMfrags [array]: area-to-mass ratios of all fragments
+    - AMsample [array]: area-to-mass ratios of sampled fragments (=AMfrags if numsample=100)
+    - Lcvals [array]: characteristic length Lc distribution of all fragments
+    - Lcsample [array]: Lc distribution of sampled fragments (=Lcvals if numsample=100)
+    '''
     M = mtarget + mkill
     if KEkill / mtarget / 1000 >= 40:
         print('catastrophic collision')
@@ -210,6 +259,14 @@ def vel_dis_NBM(mtarget, mkill, vkill, vtarget, rtar, nbins, Lc_min, Lc_max,
         NASA Standard Breakup Model is used to find the 
         number of debris fragments for a particular bin
         of characteristic lengths Lc.
+        
+        INPUT: 
+        - L0 [float]: bin lower bound in m
+        - L1 [float]: bin upper bound in m
+        - Me [float]: ejected mass from collision in kg
+        
+        OUTPUT:
+        - integer number of fragments in bin
         '''
         N0 = 0.1 * Me ** (0.75) * L0 ** (-1.71)
         N1 = 0.1 * Me ** (0.75) * L1 ** (-1.71)

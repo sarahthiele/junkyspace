@@ -4,7 +4,7 @@ import matplotlib.pyplot as  plt
 from matplotlib.gridspec import GridSpec
 
 from functions import *
-import fromaaron.KeplerTools as KT
+import tools.KeplerTools as KT
 
 datinit = np.genfromtxt('satcat_Feb10.csv', skip_header=1, dtype=str, delimiter=',')
 datinit = pd.DataFrame(datinit)

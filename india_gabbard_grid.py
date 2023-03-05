@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-from fromaaron.asat_sma import period
+from tools.asat_sma import period
 import rebound.units as u
 from functions import *
 Mearthkg = u.masses_SI['mearth']

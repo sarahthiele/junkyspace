@@ -1,7 +1,7 @@
 import sys
 sys.path.insert(1, '/store/users/sthiele/home/ASATtest/')
-from fromaaron.asat_sma import *
-from fromaaron.KeplerTools import *
+from tools.asat_sma import *
+from tools.KeplerTools import *
 from functions import *
 from NSBM_functions import *
 import pandas as pd
