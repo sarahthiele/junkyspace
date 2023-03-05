@@ -17,7 +17,7 @@ np.random.seed(SEED)
 parser = argparse.ArgumentParser()
 parser.add_argument("--numsample", default=1000, type=int)
 parser.add_argument("--Lcmin", default=0.01, type=float)
-parser.add_argument("--satdistro", default='satsnow', type=str)
+parser.add_argument("--satdistro", default='satcon', type=str)
 parser.add_argument("--KEkill", default=130e6, type=float)
 parser.add_argument("--path", default='satall', type=str)
 parser.add_argument("--event", default='India', type=str)
@@ -51,7 +51,7 @@ deorbit_R = 200.
 
 #grid params for interpolation
 satdistro = str(args.satdistro)
-if satdistro == 'satsnow':
+if satdistro == 'satcon':
     NTHETA= 180
     NALT=1200
     altCoMin=(300.+REkm)/aukm
