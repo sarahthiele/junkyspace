@@ -10,15 +10,12 @@ import sys
 sys.path.insert(1, '/store/users/sthiele/home/junkyspace/')
 from tools.asat_sma import *
 
-#SEED=314
-#np.random.seed(SEED)
-
 twopi = 2 * np.pi
 aum = u.lengths_SI['au']
 aukm= aum / 1000
 RE_eq = 6378.135 / aukm
-REkm = 6378. # Using ~ equatorial value 
-Ratm = (REkm + 200) / aukm  # effective size of Earth -- not really used at this time
+REkm = 6378. # Using ~ equatorial value
+Ratm = (REkm + 200) / aukm  # effective size of Earth (not really used at this time)
 J2 = 1.0827e-3  # harmonics
 J4 = -1.620e-6
 Mearthkg = u.masses_SI['mearth']  # earth mass in kg
@@ -26,7 +23,8 @@ Msunkg = u.masses_SI['solarmass']  # solar mass in kg
 Mearth = Mearthkg / Msunkg  # Earth mass in solar masses 
 g0 = 9.81  # Earth gravity in m / s^2
 vconv = np.sqrt(6.67e-11*1.989e30/1.496e11)
-to_m_per_s = aum / (3600 * 24 * 365.25) * twopi # multiply by this factor to convert rebound speed units to m/s
+to_m_per_s = aum / (3600 * 24 * 365.25) * twopi # multiply by this factor to 
+                                                # convert rebound speed units to m/s
 tmax = twopi  # two pi is one year in computational units !! 
 
 def cartesian_to_spherical(x, y, z):
@@ -34,11 +32,13 @@ def cartesian_to_spherical(x, y, z):
     Converts positions from cartesian to spherical coordinates. 
     
     INPUT:
-    - x,y,z [arrays]: Must all be same length and be in au
+    -----------------------
+    x,y,z [arrays]: arrays must all be same size and be in au
     
     OUTPUT:
-    - r [array]: radial distance in km
-    - theta [array]: colatitude in rads
+    -----------------------
+    r [array]:      radial distance in km
+    theta [array]:  colatitude in rads
     '''
     x = x * aukm
     y = y * aukm
@@ -53,16 +53,18 @@ def get_target_params(mtarget, vr, r, Q, inc, omega, verbose=True):
     fragment velocities/positions for debris cloud. 
     
     INPUT:
-    - mtarget [float]: target mass in kg
-    - vr [float]: velocity of TARGET at collison altitude r, in m/s
-    - r [float]: altitude of collision in km
-    - Q [float]: apogee of target in km
-    - inc [float]: orbital inclination of target in rads
-    - omega [float]: argument of pericenter of target in rads
+    -----------------------
+    mtarget [float]:  target mass in kg
+    vr [float]:       velocity of TARGET at collison altitude r, in m/s
+    r [float]:        altitude of collision in km
+    Q [float]:        apogee of target in km
+    inc [float]:      orbital inclination of target in rads
+    omega [float]:    argument of pericenter of target in rads
     
     OUTPUT:
-    - vtarget [array]: velocity vector of target in m/s
-    - rtarget [array]: cartesian position vector of target in m
+    -----------------------
+    vtarget [array]:  velocity vector of target in m/s
+    rtarget [array]:  cartesian position vector of target in m
     '''
     a = (2/(r*1e3) - vr**2/(G*Mearthkg))**(-1)/1000
     e = Q/a - 1
@@ -92,19 +94,54 @@ def get_target_params(mtarget, vr, r, Q, inc, omega, verbose=True):
     if verbose:
         print('target mass is: ', mtarget, ' kg')
         print('rtarget is: ', np.array([x0, y0, z0]) * aukm, ' km')
-        print('altitude of target is: ', mag(np.array([x0, y0, z0]))*aukm-REkm, ' km')
+        print('altitude of target is: ', mag(np.array([x0, y0, z0]))*aukm-REkm, 
+              ' km')
         print('velocity vector of target is: ', vx0, vy0, vz0, 'm/s')
         print('target speed is: ', mag(vvec), 'm/s')
         
     return vtarget, rtarget
 
-def integrate(sim1, bfrags, hashes, tstart, tend, dt, deorbit_R, chunk_i):
+def integrate(simchunk, bfrags, hashes, tstart, tend, dt, deorbit_R, chunk_i):
+    '''
+    Integrate REBOUND simulation of debris fragments from tstart to tend, removing
+    them as they deorbit. This function does not keep track of collision probabilities.
+    
+    INPUT:
+    -----------------------
+    simchunk [REBOUND sim]: sim we want to integrate. Might be the entire sim or a
+                            sub-set of particles from the simulation
+    bfrags [array]:         B_*-coefficients of fragments in sim, where B_* = C_D*A/M
+    hashes [array]:         hash numbers of fragments that are in this chunk (since 
+                            their location in the simchunk will be different than 
+                            their actual hashes) - used to remove deorbited frags
+    tstart [float]:         starting time of integration !!in code units!!
+    tend [float]:           ending time of integration !!in code units!!
+    dt [float]:             timestep !!in code units!!
+    deorbit_R [float]:      altitude at which to consider a fragment "deorbited" in km
+    chunk_i [int]:          which segment of the larger sim this is
+    
+    OUTPUT:
+    -----------------------
+    simchunk [REBOUND sim]: newly integrated sim chunk with deorbited fragments removed
+    times [array]:          times that we paused at to track status of fragments
+    e [array]:              eccentricities at each time step of all fragments
+    inc [array]:            orbital inclination at each time step in degrees
+    alt [array]:            semi-major axis at each time step in km
+    porb [array]:           orbital period at each time step in hours
+    x, y, z [array]:        cartesian coordinates at each time step in km   
+    
+    Note that e, inc, alt, porb, x, y, z, will be set to zero for t > t_deorbit
+    for a given deorbited fragment.
+    '''
+    
+    # get times to pause the integration and save data:
     times = np.arange(tstart, tend, dt)
     NTIME = len(times)
     
-    ps = sim1.particles
+    ps = simchunk.particles
     
-    rebx = reboundx.Extras(sim1)
+    # add extra forces
+    rebx = reboundx.Extras(simchunk)
     gh = rebx.load_force("gravitational_harmonics")
     rebx.add_force(gh)
     ps["Earth"].params["J2"] = J2
@@ -119,12 +156,13 @@ def integrate(sim1, bfrags, hashes, tstart, tend, dt, deorbit_R, chunk_i):
     gd.params["dist_to_m"] = aum
     gd.params["alt_ref_m"] = REkm * 1000
     for i in range(len(ps)-1):
-        ps[i+1].params["bstar"] = bfrags[i]
+        ps[i+1].params["bcoeff"] = bfrags[i]  # (could also be 2.2 * A/M)
     
+    # set up empty arrays. We'll keep track of deorbiting fragments also.
     ndebris = len(ps) - 1
     deorbit_total = 0
     deorbit_times = np.ones(len(ps) - 1)
-    ps = sim1.particles
+    ps = simchunk.particles
     Np = len(ps)-1
     e = np.zeros((NTIME, Np))
     inc = np.zeros((NTIME, Np))
@@ -133,13 +171,20 @@ def integrate(sim1, bfrags, hashes, tstart, tend, dt, deorbit_R, chunk_i):
     x = np.zeros((NTIME, Np))
     y = np.zeros((NTIME, Np))
     z = np.zeros((NTIME, Np))
+    
+    # time to integrate!
     for itime, time in enumerate(times):
         deorbit_i = 0
-        print("\nWorking on time {}, t={}, chunk {}".format(itime+1, time, chunk_i))
-        print('Number of debris in orbit: {}'.format(len(deorbit_times[deorbit_times==1])))
-        sim1.integrate(time)
+        print("\nWorking on time {}, t={}, chunk {}".format(itime+1, 
+                                                            time, chunk_i))
+        inorbit = len(deorbit_times[deorbit_times==1])
+        print('Number of debris still in orbit: {}'.format(inorbit))
+        
+        # integrate up to current time step
+        simchunk.integrate(time)
 
-        ps = sim1.particles
+        # get debris fragments
+        ps = sim.particles
         if len(ps) == 0:
             break
         i = 1
@@ -162,19 +207,53 @@ def integrate(sim1, bfrags, hashes, tstart, tend, dt, deorbit_R, chunk_i):
                 y[itime, d-1] = ps[h].y * aukm
                 z[itime, d-1] = ps[h].z * aukm
                 r = np.sqrt(ps[h].x ** 2 + ps[h].y ** 2 + ps[h].z ** 2) * aukm
-                if r <= REkm + deorbit_R: # or np.isnan(r) == True:
+                if r <= REkm + deorbit_R:
                     deorbit_times[d-1] = time
                     deorbit_i += 1
                     deorbit_total += 1
-                    sim1.remove(hash=h)
+                    simchunk.remove(hash=h)
         print('{} deorbited this step'.format(deorbit_i))
 
     print('\n {} deorbited total out of {} fragments'.format(deorbit_total, ndebris))
-
-    return sim1, times, e, inc, alt, porb, x, y, z
+    
+    intvec = simchunk, times, e, inc, alt, porb, x, y, z
+    
+    return intvec
 
 def integrate_colprob(simchunk, AMfrags, hashes, dt, deorbit_R, chunk_i, satparams,
                       maxtime, event, plottime=None, plotpath=None):
+    '''
+    Integrate REBOUND simulation of debris fragments up until maxtime, removing
+    them as they deorbit. This function keeps track of collision probabilities
+    for given satellite parameters satparams, but doesn't save full orbital data
+    over time.
+    
+    INPUT:
+    -----------------------
+    simchunk [REBOUND sim]: sim we want to integrate. Might be the entire sim or a
+                            sub-set of particles from the simulation
+    AMfrags [array]:        for B_*'s of frags in sim (B_* = 2.2*A/M), in m^2/kg
+    hashes [array]:         hash numbers of fragments that are in this chunk (since 
+                            their location in the simchunk will be different than 
+                            their actual hashes) - used to remove deorbited frags
+    dt [float]:             timestep !!in code units!!
+    deorbit_R [float]:      altitude at which to consider a fragment "deorbited" in km
+    chunk_i [int]:          which segment of the larger sim this is
+    satparams [list]:       vector containing NALT (no. of altitude bins), NTHETA (no.
+                            of colatitude bins), altref (minimum altitude in km), and
+                            dAltCo (altitude bin width in km)
+    maxtime [float]:        maximum integration time in years
+    event [str]:            event name determines which solar phase to initialize at
+    plottime:               timestep to save data at, None otherwise
+    plotpath:               path + filename to save data to
+    
+    OUTPUT:
+    -----------------------
+    simchunk [REBOUND sim]: newly integrated sim with deorbited fragments removed
+    deorbit_times [array]:  times that the fragments deorbited at 
+    colprob [array]:        collision probability of frags integrated over full lifetime
+    nancatch [int]:         something is wrong if nancatch > 0
+    '''
     if plottime != None:
         plot = True
     else:
@@ -227,7 +306,6 @@ def integrate_colprob(simchunk, AMfrags, hashes, dt, deorbit_R, chunk_i, satpara
     deorbit_total = 0
     deorbit_times = np.ones(Np)
     colprob = np.zeros(Np)
-    colprobperyear = np.zeros(Np)
     ps = simchunk.particles
     itime = 1
     nancatch = 0
@@ -254,7 +332,6 @@ def integrate_colprob(simchunk, AMfrags, hashes, dt, deorbit_R, chunk_i, satpara
                     if r <= REkm + deorbit_R:
                         deorbit_times[d-1] = time
                         colprob[d-1] = ps[h].params["collProb"]
-                        colprobperyear[d-1] = ps[h].params["collProb"] * twopi / time
                         deorbit_i += 1
                         deorbit_total += 1
                         simchunk.remove(hash=h)
@@ -275,7 +352,9 @@ def integrate_colprob(simchunk, AMfrags, hashes, dt, deorbit_R, chunk_i, satpara
                 SMA = np.array(SMA)
                 eccs = np.array(eccs)
                 porb = np.array(porb)
-                df = pd.DataFrame(np.array([SMA, eccs, porb, np.ones(len(SMA))*chunk_i]).T, columns=['SMA', 'e', 'porb', 'chunk'])
+                df = pd.DataFrame(np.array([SMA, eccs, porb, 
+                                            np.ones(len(SMA))*chunk_i]).T, 
+                                  columns=['SMA', 'e', 'porb', 'chunk'])
                 df.to_hdf(plotpath, key='data', format='t', append=True)
                 plot = False
                 
@@ -287,36 +366,39 @@ def integrate_colprob(simchunk, AMfrags, hashes, dt, deorbit_R, chunk_i, satpara
                     h = '{}'.format(int(hashes[d-1]))
                     deorbit_times[d-1] = 1e6
                     colprob[d-1] = ps[h].params["collProb"]
-                    colprobperyear[d-1] = ps[h].params["collProb"] * twopi / time
             break
 
-    print('\n {} deorbited total out of {} fragments, {} nans'.format(deorbit_total, Np, nancatch))
+    print('\n {} deorbited total out of {} fragments, {} nans'.format(deorbit_total, 
+                                                                      Np, nancatch))
     
-    return simchunk, deorbit_times, colprob, colprobperyear, nancatch
+    intvec = simchunk, deorbit_times, colprob, nancatch
+    return intvec
 
 def vel_dis_rayleigh(vexpl, vtarget, rtarget, numsample, AMval):
     '''
     Generates debris cloud params using a Rayleigh velocity distribution.
     
     INPUT:
-    - vexpl [float]: "explosion velocity" in m/s, which sets scale param 
+    -----------------------
+    vexpl [float]:  "explosion velocity" in m/s, which sets scale param 
                      for Rayleigh distribution. Typically 250 m/s
-    - vtarget [array]: target velocity vector, usually computed using
-                       get_target_params(), in m/s
-    - rtarget [array]: target position vector, usually computed using
-                       get_target_params(), in m
-    - numsample [int]: number of fragments to generate. Might be a full
-                       NSBM number of fragments (large!) or a smaller
-                       sampling
-    - AMval [float]: the Rayleigh distribution assumes a constant area-to-
+    vtarget [array]: target velocity vector, usually computed using
+                     get_target_params(), in m/s
+    rtarget [array]: target position vector, usually computed using
+                     get_target_params(), in m
+    numsample [int]: number of fragments to generate. Might be a full
+                     NSBM number of fragments (large!) or a smaller
+                     sampling
+    AMval [float]:   the Rayleigh distribution assumes a constant area-to-
                      mass ratio, assigned to all the fragments. In m^2/kg
     
     OUTPUT:
-    - vfrags [(numsample x 3) array]: fragment velocity kick vectors in m/s
-    - vfrags_total [(numsample x 3) array]: total fragment velocities in m/s
-    - eccs [array]: debris fragment eccentricities
-    - SMA [array]: semi-major axes of fragments in m
-    - AMfrags [array]: array of length numsample of AMval, to be fed to sim
+    -----------------------
+    vfrags [array]:        fragment velocity kick vectors in m/s
+    vfrags_total [array]:  total fragment velocities in m/s
+    eccs [array]:          debris fragment eccentricities
+    SMA [array]:           semi-major axes of fragments in m
+    AMfrags [array]:       array of length numsample of AMval
     '''
     vmags = np.random.rayleigh(vexpl, numsample)
     
