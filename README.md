@@ -1,6 +1,6 @@
 # Welcome to Junky Space
 
-Examples on Tatooine:
+Examples:
 
 python3 rayleigh.py --numsample 1000 --Lcmin 0.1 --satdistro satsold 
 --KEkill 150e6 --path sat2021 --event Russia --maxtime 10. --plottime 0.25 
