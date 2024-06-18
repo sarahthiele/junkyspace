@@ -1,3 +1,5 @@
+# authored by Aaron Boley
+
 import sys
 sys.path.insert(1, '/store/users/sthiele/home/ASATtest/')
 from tools.asat_sma import *
@@ -6,6 +8,7 @@ from functions import *
 from NSBM_functions import *
 import pandas as pd
 
+MAKE = False
 vconv = np.sqrt(6.67e-11*1.989e30/1.496e11)
 Nout = 1
 ndebris=300
@@ -121,101 +124,101 @@ for ic in ICs:
                         e=elow,omega=omega)
                 
 
-
-ps = sim.particles
- 
-#rebx = reboundx.Extras(sim)
-#gh = rebx.load_force("gravitational_harmonics")
-#rebx.add_force(gh)
-
-#ps["Earth"].params["J2"] = J2
-#ps["Earth"].params["J4"] =-1.620e-6 
-#ps["Earth"].params["R_eq"] = RE_eq
-
-
-### set up grid for satellite densities
-
-thetaCo = np.zeros(NTHETA)
-
-for j in range(NTHETA): thetaCo[j]=dThetaCo*(j+0.5)
-
-
-satDensity = np.zeros([NALT,NTHETA])
-altCo=[]
-for i in range(NALT):
-    altCo.append(altCoMin + i*dAltCo )
-
-altCo=np.array(altCo)
-
-satPhi=[]
-satTheta=[]
-times = np.linspace(tstart,tend,NTIME)
-print(times)
-
-for iout, time in enumerate(times):
-    print("Working on time {}".format(time))
-    sim.integrate(time)
-
-    print("Analyze particles")
-    ps=sim.particles
-    Np = len(ps)-1
-    x = np.zeros(Np)
-    y = np.zeros(Np)
-    z = np.zeros(Np)
-    for d in range(1,Np+1):
-        x[d-1] = ps[d].x
-        y[d-1] = ps[d].y
-        z[d-1] = ps[d].z
+if MAKE == True:
+    ps = sim.particles
+     
+    #rebx = reboundx.Extras(sim)
+    #gh = rebx.load_force("gravitational_harmonics")
+    #rebx.add_force(gh)
     
-    rsphere = np.sqrt(x**2+y**2+z**2)
-    thetaSat=np.arccos(z/rsphere)
-    phiSat=np.arctan2(y,x)
-
-
-    satPhi.append(phiSat)
-    satTheta.append(thetaSat)
-
-    #ialt = ((rsphere-altCoMin)/dAltCo-0.5).astype(int)
-    #itheta = (thetaSat/dThetaCo).astype(int)
-    #satDensity[ialt,itheta]+=1./((altCo[ialt])**2*dAltCo*aukm**3*2*np.pi*(np.cos(thetaCo[itheta]-0.5*dThetaCo)-np.cos(thetaCo[itheta]+0.5*dThetaCo))*NTIME)
-
-
-    for i in range(Np):
-        ialt = int((rsphere[i]-altCoMin)/dAltCo-0.5)
-        itheta = int(thetaSat[i]/dThetaCo)
-        satDensity[ialt][itheta]+=1./((altCo[ialt])**2*dAltCo*aukm**3*2*np.pi*(np.cos(thetaCo[itheta]-0.5*dThetaCo)-np.cos(thetaCo[itheta]+0.5*dThetaCo))*NTIME)
-
-
-satPhi=np.array(satPhi)*180/np.pi
-satTheta=90-np.array(satTheta)*180/np.pi
-
-phiSat=phiSat*180/np.pi
-thetaSat=90-thetaSat*180/np.pi
-
-
-#import matplotlib.pylab as plt
-#fig=plt.figure()
-#ax = fig.add_subplot(111, projection='3d')
-#ax.scatter(x,y,z,s=1)
-
-#plt.figure()
-#plt.scatter(x,y,s=1)
-
-#plt.figure()
-#plt.scatter(phiSat,thetaSat,s=1)
-
-
-#plt.figure()
-#plt.scatter(a,ecc,s=1)
-#plt.show()
-
-
-
-fout1 = open("smooth2d_python_200.dat","w")
-fout2 = open("smoothdensity2d_python_200.dat","w")
-for i in range(NALT):
-    for j in range(NTHETA):
-        fout1.write("AltSmooth {} THETA {} DENSITY {}\n".format(altCo[i]*aukm-REkm,90-thetaCo[j]*180/np.pi,satDensity[i][j]))
-        fout2.write("{}\n".format(satDensity[i][j]))
-fout1.close()
-fout2.close()
+    #ps["Earth"].params["J2"] = J2
+    #ps["Earth"].params["J4"] =-1.620e-6 
+    #ps["Earth"].params["R_eq"] = RE_eq
+    
+    
+    ### set up grid for satellite densities
+    
+    thetaCo = np.zeros(NTHETA)
+    
+    for j in range(NTHETA): thetaCo[j]=dThetaCo*(j+0.5)
+    
+    
+    satDensity = np.zeros([NALT,NTHETA])
+    altCo=[]
+    for i in range(NALT):
+        altCo.append(altCoMin + i*dAltCo )
+    
+    altCo=np.array(altCo)
+    
+    satPhi=[]
+    satTheta=[]
+    times = np.linspace(tstart,tend,NTIME)
+    print(times)
+    
+    for iout, time in enumerate(times):
+        print("Working on time {}".format(time))
+        sim.integrate(time)
+    
+        print("Analyze particles")
+        ps=sim.particles
+        Np = len(ps)-1
+        x = np.zeros(Np)
+        y = np.zeros(Np)
+        z = np.zeros(Np)
+        for d in range(1,Np+1):
+            x[d-1] = ps[d].x
+            y[d-1] = ps[d].y
+            z[d-1] = ps[d].z
+        
+        rsphere = np.sqrt(x**2+y**2+z**2)
+        thetaSat=np.arccos(z/rsphere)
+        phiSat=np.arctan2(y,x)
+    
+    
+        satPhi.append(phiSat)
+        satTheta.append(thetaSat)
+    
+        #ialt = ((rsphere-altCoMin)/dAltCo-0.5).astype(int)
+        #itheta = (thetaSat/dThetaCo).astype(int)
+        #satDensity[ialt,itheta]+=1./((altCo[ialt])**2*dAltCo*aukm**3*2*np.pi*(np.cos(thetaCo[itheta]-0.5*dThetaCo)-np.cos(thetaCo[itheta]+0.5*dThetaCo))*NTIME)
+    
+    
+        for i in range(Np):
+            ialt = int((rsphere[i]-altCoMin)/dAltCo-0.5)
+            itheta = int(thetaSat[i]/dThetaCo)
+            satDensity[ialt][itheta]+=1./((altCo[ialt])**2*dAltCo*aukm**3*2*np.pi*(np.cos(thetaCo[itheta]-0.5*dThetaCo)-np.cos(thetaCo[itheta]+0.5*dThetaCo))*NTIME)
+    
+    
+    satPhi=np.array(satPhi)*180/np.pi
+    satTheta=90-np.array(satTheta)*180/np.pi
+    
+    phiSat=phiSat*180/np.pi
+    thetaSat=90-thetaSat*180/np.pi
+    
+    
+    #import matplotlib.pylab as plt
+    #fig=plt.figure()
+    #ax = fig.add_subplot(111, projection='3d')
+    #ax.scatter(x,y,z,s=1)
+    
+    #plt.figure()
+    #plt.scatter(x,y,s=1)
+    
+    #plt.figure()
+    #plt.scatter(phiSat,thetaSat,s=1)
+    
+    
+    #plt.figure()
+    #plt.scatter(a,ecc,s=1)
+    #plt.show()
+    
+    
+    
+    fout1 = open("smooth2d_python_200.dat","w")
+    fout2 = open("smoothdensity2d_python_200.dat","w")
+    for i in range(NALT):
+        for j in range(NTHETA):
+            fout1.write("AltSmooth {} THETA {} DENSITY {}\n".format(altCo[i]*aukm-REkm,90-thetaCo[j]*180/np.pi,satDensity[i][j]))
+            fout2.write("{}\n".format(satDensity[i][j]))
+    fout1.close()
+    fout2.close()
